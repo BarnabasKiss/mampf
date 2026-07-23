@@ -4,48 +4,70 @@ Eine deutschsprachige Web-App zum Verwalten von Gerichten und Generieren eines W
 
 ## Funktionen
 
-- **Gerichte verwalten**: Erstellen, Bearbeiten, Löschen und Durchsuchen von Gerichten mit Zutaten
+- **Gerichte verwalten**: Erstellen, Bearbeiten, Duplizieren, Löschen und Durchsuchen von Gerichten mit Zutaten
 - **Wochenplan generieren**: Zufällige Auswahl von 3 Gerichten, einzelne Gerichte ersetzen/entfernen/hinzufügen
+- **Zufällig hinzufügen**: Ein zufälliges Gericht zum bestehenden Plan ergänzen
 - **Portionsskalierung**: Zutatenmengen werden automatisch an die gewünschte Portionsanzahl angepasst
-- **WhatsApp-Export**: Einkaufsliste als formatierter Text in die Zwischenablage kopieren
+- **WhatsApp-Export**: Einkaufsliste als formatierter Text (mit Fettdruck) in die Zwischenablage kopieren
+- **Mobile Optimierung**: Responsive UI mit Cards statt Tabelle auf kleinen Bildschirmen
 
 ## Technologie
 
-- **Frontend**: HTML, CSS, Vanilla JavaScript
+- **Frontend**: HTML, CSS, Vanilla JavaScript, Ionicons
 - **Backend**: Node.js mit TypeScript und Express
 - **Datenbank**: SQLite (better-sqlite3)
-- **Authentifizierung**: Session-basiert mit Benutzername/Passwort
+- **Authentifizierung**: Session-basiert mit Benutzername/Passwort (Klartext)
 - **Deployment**: Docker und Docker Compose
+- **CI/CD**: GitHub Actions → GHCR
 
 ## Schnellstart (Entwicklung)
 
 ```bash
-# Abhängigkeiten installieren
 npm install
 
 # .env-Datei erstellen (siehe .env.example)
 cp .env.example .env
-# Passwort-Hash generieren:
-# node -e "const bcrypt = require('bcrypt'); console.log(bcrypt.hashSync('dein-passwort', 10));"
+# Werte anpassen: APP_USERNAME, APP_PASSWORD, SESSION_SECRET
 
-# Bauen und starten
 npm run build
 npm start
 ```
 
-Die App ist dann unter http://localhost:3000 erreichbar.
+→ http://localhost:3000
 
-## Docker
+## Deployment via Docker Compose
+
+### Lokal bauen
 
 ```bash
-# .env-Datei mit den Umgebungsvariablen erstellen
-# (APP_USERNAME, APP_PASSWORD_HASH, SESSION_SECRET)
+# .env-Datei erstellen
+# APP_USERNAME=admin
+# APP_PASSWORD=mein-passwort
+# SESSION_SECRET=ein-langer-zufaelliger-string
 
-# Container bauen und starten
 docker compose up -d
+```
 
-# Container stoppen
-docker compose down
+### CasaOS / GHCR-Image verwenden
+
+Das Image wird bei jedem Push auf `main` automatisch via GitHub Actions gebaut und nach **ghcr.io** gepusht.
+
+```yaml
+# docker-compose.yml für CasaOS:
+services:
+  meal-planner:
+    image: ghcr.io/BarnabasKiss/mapfmapf/meal-planner:latest
+    container_name: meal-planner
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      APP_USERNAME: admin
+      APP_PASSWORD: mein-passwort
+      SESSION_SECRET: ein-langer-zufaelliger-string
+      DATABASE_PATH: /app/data/meals.sqlite
+    volumes:
+      - ./data:/app/data
 ```
 
 ## Umgebungsvariablen
@@ -53,8 +75,8 @@ docker compose down
 | Variable | Beschreibung |
 |---|---|
 | `APP_USERNAME` | Benutzername für die Anmeldung |
-| `APP_PASSWORD_HASH` | bcrypt-Hash des Passworts |
-| `SESSION_SECRET` | Geheimer Schlüssel für die Session |
+| `APP_PASSWORD` | Passwort im Klartext |
+| `SESSION_SECRET` | Geheimer Schlüssel für die Session-Verschlüsselung |
 | `PORT` | Port für den Webserver (Standard: 3000) |
 | `DATABASE_PATH` | Pfad zur SQLite-Datenbank |
 
@@ -62,6 +84,8 @@ docker compose down
 
 ```
 meal-planner/
+├── .github/workflows/
+│   └── docker-build.yml     # CI/CD: Docker Build & Push nach GHCR
 ├── src/
 │   ├── server/
 │   │   ├── index.ts          # Server-Einstiegspunkt

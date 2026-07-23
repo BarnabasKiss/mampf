@@ -1,5 +1,8 @@
 services:
   meal-planner:
+    # Verwende "build: ." für lokales Bauen, oder kommentiere build aus
+    # und verwende das GHCR-Image für CasaOS:
+    # image: ghcr.io/BarnabasKiss/mapfmapf/meal-planner:latest
     build: .
     container_name: meal-planner
     restart: unless-stopped
