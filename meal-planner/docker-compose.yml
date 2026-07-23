@@ -1,0 +1,14 @@
+services:
+  meal-planner:
+    build: .
+    container_name: meal-planner
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      APP_USERNAME: ${APP_USERNAME}
+      APP_PASSWORD: ${APP_PASSWORD}
+      SESSION_SECRET: ${SESSION_SECRET}
+      DATABASE_PATH: /app/data/meals.sqlite
+    volumes:
+      - ./data:/app/data

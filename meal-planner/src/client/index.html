@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Mampf – Wochen-Essensplaner</title>
+  <link rel="stylesheet" href="styles.css">
+  <script type="module" src="https://unpkg.com/ionicons@7.4.0/dist/ionicons/ionicons.esm.js"></script>
+</head>
+<body>
+  <!-- Login-Bereich -->
+  <div id="login-page" class="page">
+    <div class="login-container">
+      <h1>🍽️ Mampf</h1>
+      <p class="subtitle">Wochen-Essensplaner</p>
+      <form id="login-form">
+        <div class="form-group">
+          <label for="username">Benutzername</label>
+          <input type="text" id="username" name="username" required autocomplete="username">
+        </div>
+        <div class="form-group">
+          <label for="password">Passwort</label>
+          <input type="password" id="password" name="password" required autocomplete="current-password">
+        </div>
+        <div id="login-error" class="error-message hidden"></div>
+        <button type="submit" class="btn btn-primary btn-full">
+          <ion-icon name="lock-open-outline"></ion-icon> Anmelden
+        </button>
+      </form>
+    </div>
+  </div>
+
+  <!-- Hauptanwendung -->
+  <div id="app-page" class="page hidden">
+    <header>
+      <h1>🍽️ Mampf</h1>
+      <nav>
+        <button class="tab-btn active" data-tab="meals">
+          <ion-icon name="restaurant-outline"></ion-icon> <span class="tab-label">Gerichte</span>
+        </button>
+        <button class="tab-btn" data-tab="weekly-plan">
+          <ion-icon name="calendar-outline"></ion-icon> <span class="tab-label">Wochenplan</span>
+        </button>
+        <button id="logout-btn" class="btn-icon btn-icon-logout" title="Abmelden">
+          <ion-icon name="log-out-outline"></ion-icon>
+        </button>
+      </nav>
+    </header>
+
+    <main>
+      <!-- Tab: Gerichte -->
+      <section id="tab-meals" class="tab-content active">
+        <div class="toolbar">
+          <div class="search-box">
+            <ion-icon name="search-outline" class="search-icon"></ion-icon>
+            <input type="text" id="meal-search" placeholder="Gerichte durchsuchen...">
+          </div>
+          <button id="add-meal-btn" class="btn btn-primary">
+            <ion-icon name="add-outline"></ion-icon> Neues Gericht
+          </button>
+        </div>
+
+        <div id="meals-table-container">
+          <div class="table-responsive">
+            <table id="meals-table">
+              <thead>
+                <tr>
+                  <th>Gericht</th>
+                  <th class="th-diff">Schwierigkeit</th>
+                  <th class="th-portions">Port.</th>
+                  <th class="th-ingredients">Zutaten</th>
+                  <th class="th-actions">Aktionen</th>
+                </tr>
+              </thead>
+              <tbody id="meals-tbody">
+              </tbody>
+            </table>
+          </div>
+          <div id="no-meals" class="empty-state hidden">
+            <ion-icon name="restaurant-outline" class="empty-icon"></ion-icon>
+            <p>Noch keine Gerichte vorhanden.</p>
+            <p>Füge dein erstes Gericht hinzu!</p>
+          </div>
+        </div>
+
+        <!-- Mobile: Cards statt Tabelle -->
+        <div id="meals-cards" class="meals-cards hidden"></div>
+      </section>
+
+      <!-- Tab: Wochenplan -->
+      <section id="tab-weekly-plan" class="tab-content">
+        <div class="toolbar">
+          <button id="generate-plan-btn" class="btn btn-primary">
+            <ion-icon name="shuffle-outline"></ion-icon> 3 Gerichte generieren
+          </button>
+          <button id="add-to-plan-btn" class="btn btn-secondary">
+            <ion-icon name="list-outline"></ion-icon> Gericht auswählen
+          </button>
+          <button id="random-add-plan-btn" class="btn btn-secondary">
+            <ion-icon name="dice-outline"></ion-icon> Zufällig hinzufügen
+          </button>
+          <button id="copy-whatsapp-btn" class="btn btn-success">
+            <ion-icon name="copy-outline"></ion-icon> WhatsApp-Text kopieren
+          </button>
+        </div>
+
+        <div id="weekly-plan-container">
+          <div id="no-plan" class="empty-state">
+            <ion-icon name="calendar-outline" class="empty-icon"></ion-icon>
+            <p>Noch kein Wochenplan erstellt.</p>
+            <p>Klicke auf „3 Gerichte generieren", um zu starten!</p>
+          </div>
+          <div id="plan-cards" class="plan-cards hidden">
+          </div>
+        </div>
+
+        <!-- Modal: Gericht auswählen -->
+        <div id="add-to-plan-modal" class="modal hidden">
+          <div class="modal-content">
+            <h2>Gericht auswählen</h2>
+            <div class="search-box modal-search">
+              <ion-icon name="search-outline" class="search-icon"></ion-icon>
+              <input type="text" id="modal-meal-search" placeholder="Gerichte durchsuchen...">
+            </div>
+            <div id="available-meals-list" class="available-meals">
+            </div>
+            <div class="modal-actions">
+              <button id="cancel-add-to-plan-btn" class="btn btn-secondary">
+                <ion-icon name="close-outline"></ion-icon> Abbrechen
+              </button>
+            </div>
+          </div>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <!-- Modal: Gericht bearbeiten / erstellen -->
+  <div id="meal-form-modal" class="modal hidden">
+    <div class="modal-content">
+      <h2 id="meal-form-title">Neues Gericht</h2>
+      <form id="meal-form">
+        <input type="hidden" id="meal-id" value="">
+        <div class="form-group">
+          <label for="meal-name">Name *</label>
+          <input type="text" id="meal-name" required maxlength="200">
+        </div>
+        <div class="form-group">
+          <label for="meal-difficulty">Schwierigkeit *</label>
+          <select id="meal-difficulty" required>
+            <option value="1">1 – Einfach</option>
+            <option value="2">2 – Mittel</option>
+            <option value="3">3 – Schwer</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label for="meal-portions">Standardportionen *</label>
+          <input type="number" id="meal-portions" min="1" value="2" required>
+        </div>
+
+        <fieldset>
+          <legend>Zutaten</legend>
+          <div id="ingredients-list">
+          </div>
+          <button type="button" id="add-ingredient-btn" class="btn btn-secondary btn-small">
+            <ion-icon name="add-outline"></ion-icon> Weitere Zutat
+          </button>
+        </fieldset>
+
+        <div id="meal-form-error" class="error-message hidden"></div>
+
+        <div class="modal-actions">
+          <button type="submit" class="btn btn-primary">
+            <ion-icon name="save-outline"></ion-icon> Speichern
+          </button>
+          <button type="button" id="cancel-meal-form-btn" class="btn btn-secondary">
+            <ion-icon name="close-outline"></ion-icon> Abbrechen
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Modal: Löschen bestätigen -->
+  <div id="delete-confirm-modal" class="modal hidden">
+    <div class="modal-content modal-small">
+      <h2>Gericht löschen</h2>
+      <p>Möchtest du das Gericht <strong id="delete-meal-name"></strong> wirklich löschen?</p>
+      <p class="warning">Diese Aktion kann nicht rückgängig gemacht werden.</p>
+      <div class="modal-actions">
+        <button id="confirm-delete-btn" class="btn btn-danger">
+          <ion-icon name="trash-outline"></ion-icon> Löschen
+        </button>
+        <button id="cancel-delete-btn" class="btn btn-secondary">
+          <ion-icon name="close-outline"></ion-icon> Abbrechen
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast-Benachrichtigung -->
+  <div id="toast" class="toast hidden"></div>
+
+  <script src="main.js"></script>
+</body>
+</html>
