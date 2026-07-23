@@ -56,7 +56,7 @@ Das Image wird bei jedem Push auf `main` automatisch via GitHub Actions gebaut u
 # docker-compose.yml für CasaOS:
 services:
   meal-planner:
-    image: ghcr.io/BarnabasKiss/mapfmapf/meal-planner:latest
+    image: ghcr.io/barnabaskiss/mampf:latest
     container_name: meal-planner
     restart: unless-stopped
     ports:
@@ -83,7 +83,7 @@ services:
 ## Projektstruktur
 
 ```
-meal-planner/
+.
 ├── .github/workflows/
 │   └── docker-build.yml     # CI/CD: Docker Build & Push nach GHCR
 ├── src/
