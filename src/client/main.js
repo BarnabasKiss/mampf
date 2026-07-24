@@ -471,11 +471,6 @@ function initMealForm() {
     }
   });
 
-  document.getElementById('meal-form-modal').addEventListener('click', function (e) {
-    if (e.target === this) {
-      hideModal('meal-form-modal');
-    }
-  });
 }
 
 // ==================== Löschen-Bestätigung ====================
@@ -510,13 +505,6 @@ function initDeleteConfirm() {
   document.getElementById('cancel-delete-btn').addEventListener('click', function () {
     hideModal('delete-confirm-modal');
     deleteMealId = null;
-  });
-
-  document.getElementById('delete-confirm-modal').addEventListener('click', function (e) {
-    if (e.target === this) {
-      hideModal('delete-confirm-modal');
-      deleteMealId = null;
-    }
   });
 }
 
@@ -761,19 +749,30 @@ async function copyWhatsAppText() {
     await navigator.clipboard.writeText(text);
     showToast('WhatsApp-Text kopiert!', 'success');
   } catch (err) {
-    var textarea = document.createElement('textarea');
-    textarea.value = text;
-    textarea.style.position = 'fixed';
-    textarea.style.opacity = '0';
-    document.body.appendChild(textarea);
-    textarea.select();
+    // iOS-Safari compatible fallback: readonly textarea with setSelectionRange
+    var el = document.createElement('textarea');
+    el.readOnly = true;
+    el.contentEditable = true;
+    el.value = text;
+    el.style.position = 'absolute';
+    el.style.left = '0';
+    el.style.top = (window.scrollY + 100) + 'px';
+    el.style.width = '1px';
+    el.style.height = '1px';
+    el.style.fontSize = '16px';
+    el.style.opacity = '0';
+    el.style.border = 'none';
+    el.style.padding = '0';
+    document.body.appendChild(el);
+    el.focus();
+    el.setSelectionRange(0, text.length);
     try {
       document.execCommand('copy');
       showToast('WhatsApp-Text kopiert!', 'success');
     } catch (e) {
       showToast('Fehler beim Kopieren.', 'error');
     }
-    document.body.removeChild(textarea);
+    document.body.removeChild(el);
   }
 }
 
@@ -796,12 +795,6 @@ function initWeeklyPlan() {
 
   document.getElementById('cancel-add-to-plan-btn').addEventListener('click', function () {
     hideModal('add-to-plan-modal');
-  });
-
-  document.getElementById('add-to-plan-modal').addEventListener('click', function (e) {
-    if (e.target === this) {
-      hideModal('add-to-plan-modal');
-    }
   });
 
   // Modal-Suche

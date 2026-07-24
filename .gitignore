@@ -2,6 +2,7 @@ node_modules/
 dist/
 data/
 .env
+docker-compose.override.yml
 *.sqlite
 *.sqlite-wal
 *.sqlite-shm

@@ -872,6 +872,15 @@ main {
 /* ============================================= */
 /* === RESPONSIVE: Mobile (≤ 768px) === */
 /* ============================================= */
+/* iOS Safari: disable auto-zoom by ensuring inputs are at least 16px */
+@media (max-width: 768px) {
+  input,
+  select,
+  textarea {
+    font-size: 16px !important;
+  }
+}
+
 @media (max-width: 768px) {
   /* Header compact */
   header {
