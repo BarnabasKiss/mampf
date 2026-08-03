@@ -69,6 +69,52 @@ const api = {
     }
     return this.request('GET', url);
   },
+
+  // ===== Einkaufsliste =====
+  getShoppingItems() {
+    return this.request('GET', '/api/shopping-list');
+  },
+
+  addShoppingItem(name, amount) {
+    return this.request('POST', '/api/shopping-list', { name, amount });
+  },
+
+  updateShoppingItem(id, data) {
+    return this.request('PUT', '/api/shopping-list/' + id, data);
+  },
+
+  deleteShoppingItem(id) {
+    return this.request('DELETE', '/api/shopping-list/' + id);
+  },
+
+  clearCheckedShoppingItems() {
+    return this.request('POST', '/api/shopping-list/clear-checked');
+  },
+
+  addShoppingItemsFromMeals(items) {
+    return this.request('POST', '/api/shopping-list/from-meals', { items });
+  },
+
+  // ===== Vorlagen =====
+  getShoppingTemplates() {
+    return this.request('GET', '/api/shopping-list/templates');
+  },
+
+  createShoppingTemplate(name, items) {
+    return this.request('POST', '/api/shopping-list/templates', { name, items });
+  },
+
+  updateShoppingTemplate(id, name, items) {
+    return this.request('PUT', '/api/shopping-list/templates/' + id, { name, items });
+  },
+
+  deleteShoppingTemplate(id) {
+    return this.request('DELETE', '/api/shopping-list/templates/' + id);
+  },
+
+  applyShoppingTemplate(id) {
+    return this.request('POST', '/api/shopping-list/templates/' + id + '/apply');
+  },
 };
 
 // ==================== Hilfsfunktionen ====================
@@ -165,6 +211,11 @@ function initNavigation() {
 
       if (tab === 'weekly-plan') {
         renderWeeklyPlan();
+      }
+
+      if (tab === 'shopping-list') {
+        loadShoppingItems();
+        loadShoppingTemplates();
       }
     });
   });
@@ -793,6 +844,10 @@ function initWeeklyPlan() {
     copyWhatsAppText();
   });
 
+  document.getElementById('add-to-shopping-btn').addEventListener('click', function () {
+    addWeeklyPlanToShoppingList();
+  });
+
   document.getElementById('cancel-add-to-plan-btn').addEventListener('click', function () {
     hideModal('add-to-plan-modal');
   });
@@ -817,9 +872,557 @@ function initWeeklyPlan() {
   });
 }
 
+// ==================== Einkaufsliste ====================
+
+var shoppingItems = [];
+var shoppingTemplates = [];
+var shoppingPollTimer = null;
+var shoppingPollActive = false;
+
+function setSyncIndicator(state) {
+  var indicator = document.getElementById('sync-indicator');
+  if (!indicator) return;
+  if (state === 'syncing') {
+    indicator.classList.add('syncing');
+  } else if (state === 'error') {
+    indicator.classList.add('error');
+  } else {
+    indicator.classList.remove('syncing');
+    indicator.classList.remove('error');
+  }
+}
+
+async function loadShoppingItems() {
+  try {
+    setSyncIndicator('syncing');
+    var items = await api.getShoppingItems();
+    shoppingItems = items;
+    renderShoppingItems();
+    setSyncIndicator('ok');
+  } catch (err) {
+    setSyncIndicator('error');
+    if (err.status !== 401) {
+      showToast('Fehler beim Laden der Einkaufsliste: ' + err.message, 'error');
+    }
+  }
+}
+
+async function loadShoppingTemplates() {
+  try {
+    shoppingTemplates = await api.getShoppingTemplates();
+    renderTemplatesList();
+  } catch (err) {
+    showToast('Fehler beim Laden der Vorlagen: ' + err.message, 'error');
+  }
+}
+
+var shoppingInputFocused = false;
+
+function renderShoppingItems() {
+  var tbody = document.getElementById('shopping-tbody');
+  var noItems = document.getElementById('no-shopping-items');
+  var tableContainer = document.querySelector('#shopping-list-container .table-responsive');
+
+  tbody.innerHTML = '';
+
+  if (shoppingItems.length === 0) {
+    if (tableContainer) tableContainer.style.display = 'none';
+    noItems.classList.remove('hidden');
+  } else {
+    if (tableContainer) tableContainer.style.display = '';
+    noItems.classList.add('hidden');
+
+    shoppingItems.forEach(function (item) {
+      var tr = document.createElement('tr');
+      tr.className = item.checked ? 'shopping-item-checked' : '';
+      tr.innerHTML =
+        '<td class="th-check-container">' +
+          '<input type="checkbox" class="shopping-checkbox" data-id="' + item.id + '"' + (item.checked ? ' checked' : '') + '>' +
+        '</td>' +
+        '<td class="shopping-name">' +
+          '<input type="text" class="shopping-input shopping-name-input" data-id="' + item.id + '" value="' + escapeHtml(item.name) + '" placeholder="Name">' +
+        '</td>' +
+        '<td class="shopping-amount">' +
+          '<input type="text" class="shopping-input shopping-amount-input" data-id="' + item.id + '" value="' + escapeHtml(item.amount) + '" placeholder="Menge">' +
+        '</td>' +
+        '<td class="actions-cell">' +
+          '<button class="btn-icon btn-icon-delete delete-shopping-btn" data-id="' + item.id + '" title="Löschen"><ion-icon name="trash-outline"></ion-icon></button>' +
+        '</td>';
+      tbody.appendChild(tr);
+    });
+
+    bindShoppingTableEvents(tbody);
+  }
+}
+
+function bindShoppingTableEvents(container) {
+  container.querySelectorAll('.shopping-checkbox').forEach(function (checkbox) {
+    checkbox.addEventListener('change', async function () {
+      var id = parseInt(this.getAttribute('data-id'));
+      var item = shoppingItems.find(function (i) { return i.id === id; });
+      if (!item) return;
+
+      var newChecked = this.checked ? 1 : 0;
+      // Optimistisches Update
+      item.checked = newChecked;
+      renderShoppingItems();
+
+      try {
+        await api.updateShoppingItem(id, { name: item.name, amount: item.amount, checked: newChecked });
+      } catch (err) {
+        item.checked = newChecked ? 0 : 1;
+        renderShoppingItems();
+        showToast('Fehler beim Aktualisieren: ' + err.message, 'error');
+      }
+    });
+  });
+
+  container.querySelectorAll('.shopping-input').forEach(function (input) {
+    input.addEventListener('focus', function () {
+      shoppingInputFocused = true;
+    });
+
+    input.addEventListener('blur', function () {
+      shoppingInputFocused = false;
+      saveShoppingInput(this);
+    });
+
+    input.addEventListener('keydown', function (e) {
+      if (e.key === 'Enter') {
+        this.blur();
+      }
+    });
+  });
+
+  container.querySelectorAll('.delete-shopping-btn').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      var id = parseInt(this.getAttribute('data-id'));
+      deleteShoppingItem(id);
+    });
+  });
+}
+
+async function saveShoppingInput(input) {
+  var id = parseInt(input.getAttribute('data-id'));
+  var item = shoppingItems.find(function (i) { return i.id === id; });
+  if (!item) return;
+
+  var isName = input.classList.contains('shopping-name-input');
+  var newValue = input.value.trim();
+
+  if (isName) {
+    if (!newValue) {
+      // Leerer Name → Item löschen
+      await deleteShoppingItem(id);
+      return;
+    }
+    if (newValue === item.name) return;
+    item.name = newValue;
+  } else {
+    if (!newValue) newValue = '1';
+    if (newValue === item.amount) return;
+    item.amount = newValue;
+  }
+
+  try {
+    await api.updateShoppingItem(id, { name: item.name, amount: item.amount, checked: item.checked ? 1 : 0 });
+  } catch (err) {
+    showToast('Fehler beim Speichern: ' + err.message, 'error');
+    await loadShoppingItems();
+  }
+}
+
+function addShoppingItemRow() {
+  addShoppingItem('', '1');
+}
+
+async function addShoppingItem(name, amount) {
+  try {
+    await api.addShoppingItem(name, amount || '1');
+    await loadShoppingItems();
+    // Fokus auf den neuen Namen-Input setzen
+    var inputs = document.querySelectorAll('.shopping-name-input');
+    if (inputs.length > 0) {
+      inputs[inputs.length - 1].focus();
+    }
+  } catch (err) {
+    showToast('Fehler beim Hinzufügen: ' + err.message, 'error');
+  }
+}
+
+async function deleteShoppingItem(id) {
+  try {
+    await api.deleteShoppingItem(id);
+    await loadShoppingItems();
+  } catch (err) {
+    showToast('Fehler beim Löschen: ' + err.message, 'error');
+  }
+}
+
+async function clearCheckedItems() {
+  try {
+    var result = await api.clearCheckedShoppingItems();
+    if (result.deleted > 0) {
+      showToast(result.deleted + ' Item(s) gelöscht.', 'success');
+    } else {
+      showToast('Keine abgehakten Items vorhanden.', 'error');
+    }
+    await loadShoppingItems();
+  } catch (err) {
+    showToast('Fehler beim Löschen: ' + err.message, 'error');
+  }
+}
+
+// ==================== Vorlagen ====================
+
+function renderTemplatesList() {
+  var list = document.getElementById('templates-list');
+  if (!list) return;
+
+  list.innerHTML = '';
+
+  if (shoppingTemplates.length === 0) {
+    list.innerHTML = '<p class="templates-empty">Noch keine Vorlagen vorhanden.</p>';
+  } else {
+    shoppingTemplates.forEach(function (template) {
+      var item = document.createElement('div');
+      item.className = 'template-item';
+      item.innerHTML =
+        '<div class="template-info">' +
+          '<span class="template-name">' + escapeHtml(template.name) + '</span>' +
+          '<span class="template-meta">' + template.items.length + ' Item(s)</span>' +
+        '</div>' +
+        '<div class="template-actions">' +
+          '<button class="btn btn-primary btn-small template-apply-btn" data-id="' + template.id + '" title="Auf Einkaufsliste hinzufügen"><ion-icon name="download-outline"></ion-icon></button>' +
+          '<button class="btn btn-secondary btn-small template-edit-btn" data-id="' + template.id + '" title="Bearbeiten"><ion-icon name="create-outline"></ion-icon></button>' +
+          '<button class="btn btn-danger btn-small template-delete-btn" data-id="' + template.id + '" title="Löschen"><ion-icon name="trash-outline"></ion-icon></button>' +
+        '</div>';
+      list.appendChild(item);
+    });
+
+    list.querySelectorAll('.template-apply-btn').forEach(function (btn) {
+      btn.addEventListener('click', async function () {
+        var id = parseInt(this.getAttribute('data-id'));
+        await applyTemplate(id);
+      });
+    });
+
+    list.querySelectorAll('.template-edit-btn').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        var id = parseInt(this.getAttribute('data-id'));
+        var template = shoppingTemplates.find(function (t) { return t.id === id; });
+        if (template) openTemplateForm(template);
+      });
+    });
+
+    list.querySelectorAll('.template-delete-btn').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        var id = parseInt(this.getAttribute('data-id'));
+        var template = shoppingTemplates.find(function (t) { return t.id === id; });
+        if (template) confirmDeleteTemplate(template);
+      });
+    });
+  }
+}
+
+async function applyTemplate(templateId) {
+  if (!templateId) {
+    showToast('Bitte eine Vorlage auswählen.', 'error');
+    return;
+  }
+
+  try {
+    await api.applyShoppingTemplate(templateId);
+    showToast('Vorlage hinzugefügt.', 'success');
+    await loadShoppingItems();
+  } catch (err) {
+    showToast('Fehler beim Anwenden der Vorlage: ' + err.message, 'error');
+  }
+}
+
+function openSaveTemplateModal() {
+  if (shoppingItems.length === 0) {
+    showToast('Einkaufsliste ist leer – nichts zu speichern.', 'error');
+    return;
+  }
+
+  document.getElementById('template-name').value = '';
+  document.getElementById('save-template-error').classList.add('hidden');
+  showModal('save-template-modal');
+}
+
+async function saveCurrentListAsTemplate(name) {
+  var items = shoppingItems.map(function (item) {
+    return { name: item.name, amount: item.amount };
+  });
+
+  try {
+    await api.createShoppingTemplate(name, items);
+    showToast('Vorlage gespeichert.', 'success');
+    hideModal('save-template-modal');
+    await loadShoppingTemplates();
+  } catch (err) {
+    showToast('Fehler beim Speichern der Vorlage: ' + err.message, 'error');
+  }
+}
+
+// ==================== Vorlagen-Formular ====================
+
+var editingTemplateId = null;
+
+function openTemplateForm(template) {
+  editingTemplateId = template ? template.id : null;
+
+  document.getElementById('template-form-title').textContent = template ? 'Vorlage bearbeiten' : 'Neue Vorlage';
+  document.getElementById('template-id').value = template ? template.id : '';
+  document.getElementById('template-form-name').value = template ? template.name : '';
+  document.getElementById('template-form-error').classList.add('hidden');
+
+  var itemsList = document.getElementById('template-items-list');
+  itemsList.innerHTML = '';
+
+  var items = template ? template.items : [{ name: '', amount: '1' }];
+  items.forEach(function (item) {
+    addTemplateItemRow(item.name, item.amount);
+  });
+
+  showModal('template-form-modal');
+}
+
+function addTemplateItemRow(name, amount) {
+  var itemsList = document.getElementById('template-items-list');
+  var row = document.createElement('div');
+  row.className = 'ingredient-row';
+  row.innerHTML =
+    '<input type="text" class="template-item-name" placeholder="Item-Name" value="' + escapeHtml(name || '') + '" required>' +
+    '<input type="text" class="template-item-amount" placeholder="Menge" value="' + escapeHtml(amount || '1') + '" required>' +
+    '<button type="button" class="btn-remove-ingredient" title="Item entfernen">✕</button>';
+
+  row.querySelector('.btn-remove-ingredient').addEventListener('click', function () {
+    var rows = itemsList.querySelectorAll('.ingredient-row');
+    if (rows.length > 1) {
+      row.remove();
+    } else {
+      showToast('Mindestens ein Item ist erforderlich.', 'error');
+    }
+  });
+
+  itemsList.appendChild(row);
+}
+
+function getTemplateFormItems() {
+  var rows = document.querySelectorAll('#template-items-list .ingredient-row');
+  var items = [];
+  rows.forEach(function (row, index) {
+    var nameInput = row.querySelector('.template-item-name');
+    var amountInput = row.querySelector('.template-item-amount');
+    items.push({
+      name: nameInput.value.trim(),
+      amount: amountInput.value.trim() || '1',
+      sort_order: index,
+    });
+  });
+  return items;
+}
+
+function confirmDeleteTemplate(template) {
+  deleteTemplateId = template.id;
+  document.getElementById('delete-template-name').textContent = template.name;
+  showModal('delete-template-confirm-modal');
+}
+
+var deleteTemplateId = null;
+
+async function deleteTemplate(id) {
+  try {
+    await api.deleteShoppingTemplate(id);
+    showToast('Vorlage gelöscht.', 'success');
+    hideModal('delete-template-confirm-modal');
+    await loadShoppingTemplates();
+  } catch (err) {
+    showToast('Fehler beim Löschen der Vorlage: ' + err.message, 'error');
+  }
+}
+
+// ==================== Wochenplan → Einkaufsliste ====================
+
+async function addWeeklyPlanToShoppingList() {
+  if (weeklyPlan.length === 0) {
+    showToast('Kein Wochenplan vorhanden.', 'error');
+    return;
+  }
+
+  var items = [];
+  weeklyPlan.forEach(function (planItem) {
+    planItem.meal.ingredients.forEach(function (ing) {
+      var packages = calculatePackages(ing.package_count, planItem.meal.standard_portions, planItem.portions);
+      items.push({
+        name: ing.name,
+        amount: packages + ' Stk.',
+      });
+    });
+  });
+
+  if (items.length === 0) {
+    showToast('Keine Zutaten vorhanden.', 'error');
+    return;
+  }
+
+  try {
+    await api.addShoppingItemsFromMeals(items);
+    showToast(items.length + ' Zutaten zur Einkaufsliste hinzugefügt.', 'success');
+  } catch (err) {
+    showToast('Fehler beim Hinzufügen: ' + err.message, 'error');
+  }
+}
+
+// ==================== Einkaufsliste Init ====================
+
+function startShoppingPolling() {
+  if (shoppingPollTimer) return;
+  shoppingPollTimer = setInterval(async function () {
+    if (!shoppingPollActive) return;
+    try {
+      var items = await api.getShoppingItems();
+      var changed = items.length !== shoppingItems.length ||
+        items.some(function (item, index) {
+          var current = shoppingItems[index];
+          return !current ||
+            current.id !== item.id ||
+            current.name !== item.name ||
+            current.amount !== item.amount ||
+            current.checked !== item.checked;
+        });
+      if (changed && !shoppingInputFocused) {
+        shoppingItems = items;
+        renderShoppingItems();
+      }
+      setSyncIndicator('ok');
+    } catch (err) {
+      setSyncIndicator('error');
+    }
+  }, 3000);
+}
+
+function stopShoppingPolling() {
+  if (shoppingPollTimer) {
+    clearInterval(shoppingPollTimer);
+    shoppingPollTimer = null;
+  }
+}
+
+function initShoppingList() {
+  document.getElementById('add-shopping-item-btn').addEventListener('click', function () {
+    addShoppingItemRow();
+  });
+
+  document.getElementById('clear-checked-btn').addEventListener('click', function () {
+    clearCheckedItems();
+  });
+
+  document.getElementById('save-as-template-btn').addEventListener('click', function () {
+    openSaveTemplateModal();
+  });
+
+  document.getElementById('manage-templates-btn').addEventListener('click', function () {
+    renderTemplatesList();
+    showModal('manage-templates-modal');
+  });
+
+  // Save template modal
+  document.getElementById('save-template-form').addEventListener('submit', async function (e) {
+    e.preventDefault();
+    var name = document.getElementById('template-name').value.trim();
+    if (!name) {
+      document.getElementById('save-template-error').textContent = 'Name ist erforderlich.';
+      document.getElementById('save-template-error').classList.remove('hidden');
+      return;
+    }
+    await saveCurrentListAsTemplate(name);
+  });
+
+  document.getElementById('cancel-save-template-btn').addEventListener('click', function () {
+    hideModal('save-template-modal');
+  });
+
+  // Manage templates modal
+  document.getElementById('close-manage-templates-btn').addEventListener('click', function () {
+    hideModal('manage-templates-modal');
+  });
+
+  var addTemplateBtn = document.getElementById('add-template-btn');
+  if (addTemplateBtn) {
+    addTemplateBtn.addEventListener('click', function () {
+      hideModal('manage-templates-modal');
+      openTemplateForm(null);
+    });
+  }
+
+  // Template form modal
+  document.getElementById('add-template-item-btn').addEventListener('click', function () {
+    addTemplateItemRow('', '1');
+  });
+
+  document.getElementById('cancel-template-form-btn').addEventListener('click', function () {
+    hideModal('template-form-modal');
+  });
+
+  document.getElementById('template-form').addEventListener('submit', async function (e) {
+    e.preventDefault();
+    var errorDiv = document.getElementById('template-form-error');
+    errorDiv.classList.add('hidden');
+
+    var name = document.getElementById('template-form-name').value.trim();
+    var items = getTemplateFormItems();
+
+    var errors = [];
+    if (!name) errors.push('Name ist erforderlich.');
+    if (items.length === 0) errors.push('Mindestens ein Item ist erforderlich.');
+    items.forEach(function (item, i) {
+      if (!item.name) errors.push('Item ' + (i + 1) + ': Name ist erforderlich.');
+    });
+
+    if (errors.length > 0) {
+      errorDiv.innerHTML = errors.join('<br>');
+      errorDiv.classList.remove('hidden');
+      return;
+    }
+
+    try {
+      if (editingTemplateId) {
+        await api.updateShoppingTemplate(editingTemplateId, name, items);
+        showToast('Vorlage aktualisiert.', 'success');
+      } else {
+        await api.createShoppingTemplate(name, items);
+        showToast('Vorlage erstellt.', 'success');
+      }
+      hideModal('template-form-modal');
+      await loadShoppingTemplates();
+    } catch (err) {
+      errorDiv.textContent = err.message || 'Fehler beim Speichern.';
+      errorDiv.classList.remove('hidden');
+    }
+  });
+
+  // Delete template confirm modal
+  document.getElementById('confirm-delete-template-btn').addEventListener('click', function () {
+    if (!deleteTemplateId) return;
+    var id = deleteTemplateId;
+    deleteTemplateId = null;
+    deleteTemplate(id);
+  });
+
+  document.getElementById('cancel-delete-template-btn').addEventListener('click', function () {
+    hideModal('delete-template-confirm-modal');
+    deleteTemplateId = null;
+  });
+}
+
 // ==================== App-Initialisierung ====================
 
 function showLogin() {
+  stopShoppingPolling();
+  shoppingPollActive = false;
   document.getElementById('login-page').classList.remove('hidden');
   document.getElementById('app-page').classList.add('hidden');
   document.getElementById('username').value = '';
@@ -831,6 +1434,10 @@ function showApp() {
   document.getElementById('login-page').classList.add('hidden');
   document.getElementById('app-page').classList.remove('hidden');
   loadMeals();
+
+  // Einkaufsliste-Polling starten
+  shoppingPollActive = true;
+  startShoppingPolling();
 }
 
 async function checkSession() {
@@ -855,5 +1462,6 @@ document.addEventListener('DOMContentLoaded', function () {
   initMealForm();
   initDeleteConfirm();
   initWeeklyPlan();
+  initShoppingList();
   checkSession();
 });

@@ -5,6 +5,7 @@ import fs from 'fs';
 import { initializeDatabase } from './database';
 import authRoutes from './routes/auth.routes';
 import mealsRoutes from './routes/meals.routes';
+import shoppingRoutes from './routes/shopping.routes';
 
 const app = express();
 const PORT = parseInt(process.env.PORT || '3000', 10);
@@ -29,6 +30,7 @@ app.use(session({
 // API-Routen
 app.use('/api', authRoutes);
 app.use('/api/meals', mealsRoutes);
+app.use('/api/shopping-list', shoppingRoutes);
 
 // Statische Dateien (Frontend) ausliefern
 // In der Docker-Umgebung sind die Client-Dateien unter dist/client/

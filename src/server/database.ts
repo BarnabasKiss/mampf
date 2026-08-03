@@ -26,13 +26,21 @@ export function getDatabase(): Database.Database {
 export function initializeDatabase(): void {
   const database = getDatabase();
 
-  const migrationPath = path.join(__dirname, '..', '..', 'migrations', '001-initial.sql');
-  if (fs.existsSync(migrationPath)) {
+  const migrationsDir = path.join(__dirname, '..', '..', 'migrations');
+  if (!fs.existsSync(migrationsDir)) {
+    console.warn('Migrationsverzeichnis nicht gefunden:', migrationsDir);
+    return;
+  }
+
+  const migrationFiles = fs.readdirSync(migrationsDir)
+    .filter(file => file.endsWith('.sql'))
+    .sort();
+
+  for (const file of migrationFiles) {
+    const migrationPath = path.join(migrationsDir, file);
     const migration = fs.readFileSync(migrationPath, 'utf-8');
     database.exec(migration);
-    console.log('Datenbank-Migration erfolgreich ausgeführt.');
-  } else {
-    console.warn('Migrationsdatei nicht gefunden:', migrationPath);
+    console.log(`Migration ausgeführt: ${file}`);
   }
 }
 

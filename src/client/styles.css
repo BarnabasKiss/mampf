@@ -995,3 +995,222 @@ main {
     justify-content: center;
   }
 }
+
+/* === Einkaufsliste === */
+#shopping-table {
+  width: 100%;
+  border-collapse: collapse;
+  background: var(--color-surface);
+  border-radius: var(--radius);
+  overflow: hidden;
+  box-shadow: var(--shadow);
+  min-width: 450px;
+}
+
+#shopping-table th,
+#shopping-table td {
+  padding: 10px 12px;
+  text-align: left;
+  border-bottom: 1px solid var(--color-border);
+}
+
+#shopping-table th {
+  background: var(--color-bg);
+  font-weight: 600;
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--color-text-light);
+  white-space: nowrap;
+}
+
+#shopping-table tbody tr:hover {
+  background: #f8f9fc;
+}
+
+#shopping-table tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.shopping-item-checked .shopping-name,
+.shopping-item-checked .shopping-amount {
+  text-decoration: line-through;
+  color: var(--color-text-light);
+}
+
+.th-check {
+  width: 40px;
+}
+
+.th-check-container {
+  width: 40px;
+  text-align: center;
+}
+
+.shopping-checkbox {
+  width: 18px;
+  height: 18px;
+  cursor: pointer;
+  accent-color: var(--color-success);
+}
+
+.shopping-input {
+  width: 100%;
+  padding: 6px 8px;
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  font-size: 0.9rem;
+  background: transparent;
+  color: var(--color-text);
+  transition: all 0.2s;
+}
+
+.shopping-input:hover {
+  border-color: var(--color-border);
+  background: var(--color-surface);
+}
+
+.shopping-input:focus {
+  outline: none;
+  border-color: var(--color-primary);
+  background: var(--color-surface);
+  box-shadow: 0 0 0 3px rgba(74, 144, 217, 0.15);
+}
+
+.shopping-item-checked .shopping-input {
+  text-decoration: line-through;
+  color: var(--color-text-light);
+}
+
+.shopping-add-row {
+  display: flex;
+  justify-content: center;
+  margin-top: 16px;
+}
+
+.shopping-templates-control {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.shopping-templates-control select {
+  padding: 8px 10px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  font-size: 0.85rem;
+  background: var(--color-surface);
+  min-width: 160px;
+}
+
+.shopping-templates-control select:focus {
+  outline: none;
+  border-color: var(--color-primary);
+}
+
+.sync-indicator {
+  display: inline-flex;
+  align-items: center;
+  margin-left: auto;
+}
+
+.sync-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--color-success);
+  transition: all 0.3s;
+}
+
+.sync-indicator.syncing .sync-dot {
+  background: var(--color-primary);
+  animation: syncPulse 1s infinite;
+}
+
+.sync-indicator.error .sync-dot {
+  background: var(--color-danger);
+}
+
+@keyframes syncPulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.3; }
+}
+
+/* === Vorlagen-Verwaltung === */
+.templates-toolbar {
+  margin-bottom: 12px;
+}
+
+.templates-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-height: 350px;
+  overflow-y: auto;
+  margin-bottom: 8px;
+}
+
+.templates-empty {
+  text-align: center;
+  padding: 20px;
+  color: var(--color-text-light);
+}
+
+.template-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px 14px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  gap: 8px;
+}
+
+.template-item:hover {
+  background: var(--color-bg);
+  border-color: var(--color-primary);
+}
+
+.template-info {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.template-name {
+  font-weight: 500;
+  font-size: 0.9rem;
+}
+
+.template-meta {
+  font-size: 0.8rem;
+  color: var(--color-text-light);
+}
+
+.template-actions {
+  display: flex;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+/* Mobile optimizations for shopping list */
+@media (max-width: 768px) {
+  #shopping-table {
+    min-width: 0;
+  }
+
+  .shopping-templates-control {
+    width: 100%;
+  }
+
+  .shopping-templates-control select {
+    flex: 1;
+    min-width: 0;
+    width: 100%;
+  }
+
+  .sync-indicator {
+    margin-left: 0;
+  }
+}

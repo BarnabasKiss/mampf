@@ -41,6 +41,9 @@
         <button class="tab-btn" data-tab="weekly-plan">
           <ion-icon name="calendar-outline"></ion-icon> <span class="tab-label">Wochenplan</span>
         </button>
+        <button class="tab-btn" data-tab="shopping-list">
+          <ion-icon name="cart-outline"></ion-icon> <span class="tab-label">Einkaufsliste</span>
+        </button>
         <button id="logout-btn" class="btn-icon btn-icon-logout" title="Abmelden">
           <ion-icon name="log-out-outline"></ion-icon>
         </button>
@@ -102,6 +105,9 @@
           <button id="copy-whatsapp-btn" class="btn btn-success">
             <ion-icon name="copy-outline"></ion-icon> WhatsApp-Text kopieren
           </button>
+          <button id="add-to-shopping-btn" class="btn btn-success">
+            <ion-icon name="cart-outline"></ion-icon> Zur Einkaufsliste
+          </button>
         </div>
 
         <div id="weekly-plan-container">
@@ -129,6 +135,51 @@
                 <ion-icon name="close-outline"></ion-icon> Abbrechen
               </button>
             </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Tab: Einkaufsliste -->
+      <section id="tab-shopping-list" class="tab-content">
+        <div class="toolbar">
+          <button id="clear-checked-btn" class="btn btn-secondary">
+            <ion-icon name="checkmark-done-outline"></ion-icon> Abgehakte löschen
+          </button>
+          <button id="save-as-template-btn" class="btn btn-secondary">
+            <ion-icon name="bookmark-outline"></ion-icon> Vorlage speichern
+          </button>
+          <button id="manage-templates-btn" class="btn btn-secondary">
+            <ion-icon name="settings-outline"></ion-icon> Vorlagen verwalten
+          </button>
+          <div class="sync-indicator" id="sync-indicator" title="Synchronisiert">
+            <span class="sync-dot"></span>
+          </div>
+        </div>
+
+        <div id="shopping-list-container">
+          <div class="table-responsive">
+            <table id="shopping-table">
+              <thead>
+                <tr>
+                  <th class="th-check"></th>
+                  <th>Name</th>
+                  <th class="th-amount">Menge</th>
+                  <th class="th-actions">Aktionen</th>
+                </tr>
+              </thead>
+              <tbody id="shopping-tbody">
+              </tbody>
+            </table>
+          </div>
+          <div id="no-shopping-items" class="empty-state hidden">
+            <ion-icon name="cart-outline" class="empty-icon"></ion-icon>
+            <p>Einkaufsliste ist leer.</p>
+            <p>Füge Items hinzu oder lade eine Vorlage!</p>
+          </div>
+          <div class="shopping-add-row">
+            <button id="add-shopping-item-btn" class="btn btn-primary">
+              <ion-icon name="add-outline"></ion-icon> Zeile hinzufügen
+            </button>
           </div>
         </div>
       </section>
@@ -192,6 +243,98 @@
           <ion-icon name="trash-outline"></ion-icon> Löschen
         </button>
         <button id="cancel-delete-btn" class="btn btn-secondary">
+          <ion-icon name="close-outline"></ion-icon> Abbrechen
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal: Vorlage speichern -->
+  <div id="save-template-modal" class="modal hidden">
+    <div class="modal-content">
+      <h2>Als Vorlage speichern</h2>
+      <form id="save-template-form">
+        <div class="form-group">
+          <label for="template-name">Vorlagenname *</label>
+          <input type="text" id="template-name" required maxlength="100" placeholder="z.B. Wöchentliche Basics">
+        </div>
+        <div id="save-template-error" class="error-message hidden"></div>
+        <div class="modal-actions">
+          <button type="submit" class="btn btn-primary">
+            <ion-icon name="save-outline"></ion-icon> Speichern
+          </button>
+          <button type="button" id="cancel-save-template-btn" class="btn btn-secondary">
+            <ion-icon name="close-outline"></ion-icon> Abbrechen
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Modal: Vorlagen verwalten -->
+  <div id="manage-templates-modal" class="modal hidden">
+    <div class="modal-content">
+      <h2>Vorlagen verwalten</h2>
+      <div class="toolbar templates-toolbar">
+        <button id="add-template-btn" class="btn btn-primary">
+          <ion-icon name="add-outline"></ion-icon> Neue Vorlage
+        </button>
+      </div>
+      <div id="templates-list" class="templates-list">
+      </div>
+      <div class="modal-actions">
+        <button id="close-manage-templates-btn" class="btn btn-secondary">
+          <ion-icon name="close-outline"></ion-icon> Schließen
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal: Vorlage bearbeiten / erstellen -->
+  <div id="template-form-modal" class="modal hidden">
+    <div class="modal-content">
+      <h2 id="template-form-title">Neue Vorlage</h2>
+      <form id="template-form">
+        <input type="hidden" id="template-id" value="">
+        <div class="form-group">
+          <label for="template-form-name">Name *</label>
+          <input type="text" id="template-form-name" required maxlength="100">
+        </div>
+
+        <fieldset>
+          <legend>Items</legend>
+          <div id="template-items-list">
+          </div>
+          <button type="button" id="add-template-item-btn" class="btn btn-secondary btn-small">
+            <ion-icon name="add-outline"></ion-icon> Weitere Item
+          </button>
+        </fieldset>
+
+        <div id="template-form-error" class="error-message hidden"></div>
+
+        <div class="modal-actions">
+          <button type="submit" class="btn btn-primary">
+            <ion-icon name="save-outline"></ion-icon> Speichern
+          </button>
+          <button type="button" id="cancel-template-form-btn" class="btn btn-secondary">
+            <ion-icon name="close-outline"></ion-icon> Abbrechen
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Modal: Vorlage löschen bestätigen -->
+  <div id="delete-template-confirm-modal" class="modal hidden">
+    <div class="modal-content modal-small">
+      <h2>Vorlage löschen</h2>
+      <p>Möchtest du die Vorlage <strong id="delete-template-name"></strong> wirklich löschen?</p>
+      <p class="warning">Diese Aktion kann nicht rückgängig gemacht werden.</p>
+      <div class="modal-actions">
+        <button id="confirm-delete-template-btn" class="btn btn-danger">
+          <ion-icon name="trash-outline"></ion-icon> Löschen
+        </button>
+        <button id="cancel-delete-template-btn" class="btn btn-secondary">
           <ion-icon name="close-outline"></ion-icon> Abbrechen
         </button>
       </div>
