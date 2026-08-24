@@ -1179,6 +1179,8 @@ main {
 .shopping-checkbox {
   width: 18px;
   height: 18px;
+  display: block;
+  margin: 0 auto;
   cursor: pointer;
   accent-color: var(--color-success);
 }
