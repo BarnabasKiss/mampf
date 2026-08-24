@@ -1090,10 +1090,9 @@ function renderShoppingItems() {
 
 function groupShoppingItems() {
   var groups = [];
+  // "Allgemein" (ohne Kategorie) wird immer angezeigt
   var uncat = shoppingItems.filter(function (i) { return i.category_id === null || i.category_id === undefined; });
-  if (uncat.length > 0) {
-    groups.push({ category: null, items: uncat });
-  }
+  groups.push({ category: null, items: uncat });
   shoppingCategories.forEach(function (cat) {
     var items = shoppingItems.filter(function (i) { return i.category_id == cat.id; });
     groups.push({ category: cat, items: items });
