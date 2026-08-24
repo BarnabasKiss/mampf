@@ -996,25 +996,154 @@ main {
   }
 }
 
-/* === Einkaufsliste === */
-#shopping-table {
+/* === Einkaufsliste: Kategorie-Sektionen === */
+.shopping-category {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  margin-bottom: 16px;
+}
+
+.shopping-category-header {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 14px;
+  background: var(--color-bg);
+  cursor: pointer;
+  border-radius: var(--radius) var(--radius) 0 0;
+  user-select: none;
+}
+
+.shopping-category-header:hover {
+  background: var(--color-border);
+}
+
+.cat-collapse-btn {
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  border: none;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--color-text-light);
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.1rem;
+  touch-action: manipulation;
+}
+
+.cat-collapse-btn:hover {
+  background: var(--color-border);
+}
+
+.cat-name {
+  flex: 1;
+  font-weight: 600;
+  font-size: 1rem;
+  color: var(--color-text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.cat-rename-input {
+  flex: 1;
+  padding: 8px 10px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  font-size: 0.95rem;
+  background: var(--color-surface);
+  color: var(--color-text);
+}
+
+.cat-rename-input:focus {
+  outline: none;
+  border-color: var(--color-primary);
+}
+
+.cat-menu-btn {
+  flex-shrink: 0;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  border: none;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--color-text-light);
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.2rem;
+  touch-action: manipulation;
+}
+
+.cat-menu-btn:hover {
+  background: var(--color-border);
+}
+
+.cat-menu {
+  position: absolute;
+  top: 100%;
+  right: 0;
+  margin-top: 4px;
+  min-width: 150px;
+  padding: 6px 0;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  box-shadow: var(--shadow-lg);
+  z-index: 50;
+  display: flex;
+  flex-direction: column;
+}
+
+.cat-menu-action {
+  padding: 10px 14px;
+  border: none;
+  background: transparent;
+  text-align: left;
+  font-size: 0.9rem;
+  cursor: pointer;
+  color: var(--color-text);
+  white-space: nowrap;
+}
+
+.cat-menu-action:hover:not(:disabled) {
+  background: var(--color-bg);
+}
+
+.cat-menu-action:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.shopping-category-body {
+  padding: 0;
+}
+
+/* === Einkaufsliste: Tabelle === */
+.shopping-table {
   width: 100%;
   border-collapse: collapse;
   background: var(--color-surface);
-  border-radius: var(--radius);
   overflow: hidden;
-  box-shadow: var(--shadow);
-  min-width: 450px;
+  border-radius: 0 0 var(--radius) var(--radius);
 }
 
-#shopping-table th,
-#shopping-table td {
+.shopping-table th,
+.shopping-table td {
   padding: 10px 12px;
   text-align: left;
   border-bottom: 1px solid var(--color-border);
 }
 
-#shopping-table th {
+.shopping-table th {
   background: var(--color-bg);
   font-weight: 600;
   font-size: 0.8rem;
@@ -1024,11 +1153,11 @@ main {
   white-space: nowrap;
 }
 
-#shopping-table tbody tr:hover {
+.shopping-table tbody tr:hover {
   background: #f8f9fc;
 }
 
-#shopping-table tbody tr:last-child td {
+.shopping-table tbody tr:last-child td {
   border-bottom: none;
 }
 
@@ -1085,7 +1214,8 @@ main {
 .shopping-add-row {
   display: flex;
   justify-content: center;
-  margin-top: 16px;
+  margin: 8px 0 16px;
+  padding: 4px 0;
 }
 
 .shopping-templates-control {
@@ -1196,8 +1326,54 @@ main {
 
 /* Mobile optimizations for shopping list */
 @media (max-width: 768px) {
-  #shopping-table {
+  .shopping-table {
     min-width: 0;
+  }
+
+  /* Weniger Zell-Padding → mehr Platz für den Namen */
+  .shopping-table th,
+  .shopping-table td {
+    padding: 8px 6px;
+  }
+
+  /* Menge-Spalte: kompakt (40px), genug für eine zweistellige Zahl */
+  .shopping-amount {
+    width: 60px;
+    padding: 8px 3px;
+  }
+
+  .shopping-amount input {
+    text-align: right;
+    padding: 6px 3px;
+  }
+
+  /* Löschen-Knopf kompakt und rechtsbündig */
+  .shopping-table th:last-child,
+  .shopping-table td:last-child {
+    padding: 8px 2px;
+    text-align: right;
+    width: 60px;
+  }
+
+  .shopping-table th:last-child {
+    background: var(--color-bg);
+    border-bottom: none;
+  }
+
+  .actions-cell {
+    gap: 2px;
+    justify-content: center;
+  }
+
+  .delete-shopping-btn {
+    width: 32px;
+    height: 32px;
+  }
+
+  /* Zeile-hinzufügen-Button über volle Breite */
+  .shopping-add-row .btn {
+    width: 100%;
+    justify-content: center;
   }
 
   .shopping-templates-control {

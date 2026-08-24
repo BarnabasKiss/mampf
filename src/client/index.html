@@ -142,6 +142,9 @@
       <!-- Tab: Einkaufsliste -->
       <section id="tab-shopping-list" class="tab-content">
         <div class="toolbar">
+          <button id="add-category-btn" class="btn btn-secondary">
+            <ion-icon name="folder-outline"></ion-icon> Neue Kategorie
+          </button>
           <button id="clear-checked-btn" class="btn btn-secondary">
             <ion-icon name="checkmark-done-outline"></ion-icon> Abgehakte löschen
           </button>
@@ -157,29 +160,11 @@
         </div>
 
         <div id="shopping-list-container">
-          <div class="table-responsive">
-            <table id="shopping-table">
-              <thead>
-                <tr>
-                  <th class="th-check"></th>
-                  <th>Name</th>
-                  <th class="th-amount">Menge</th>
-                  <th class="th-actions">Aktionen</th>
-                </tr>
-              </thead>
-              <tbody id="shopping-tbody">
-              </tbody>
-            </table>
-          </div>
+          <div id="shopping-categories"></div>
           <div id="no-shopping-items" class="empty-state hidden">
             <ion-icon name="cart-outline" class="empty-icon"></ion-icon>
             <p>Einkaufsliste ist leer.</p>
             <p>Füge Items hinzu oder lade eine Vorlage!</p>
-          </div>
-          <div class="shopping-add-row">
-            <button id="add-shopping-item-btn" class="btn btn-primary">
-              <ion-icon name="add-outline"></ion-icon> Zeile hinzufügen
-            </button>
           </div>
         </div>
       </section>
@@ -335,6 +320,46 @@
           <ion-icon name="trash-outline"></ion-icon> Löschen
         </button>
         <button id="cancel-delete-template-btn" class="btn btn-secondary">
+          <ion-icon name="close-outline"></ion-icon> Abbrechen
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal: Kategorie hinzufügen -->
+  <div id="add-category-modal" class="modal hidden">
+    <div class="modal-content modal-small">
+      <h2>Neue Kategorie</h2>
+      <form id="add-category-form">
+        <div class="form-group">
+          <label for="new-category-name">Kategoriename *</label>
+          <input type="text" id="new-category-name" required maxlength="100" placeholder="z.B. Obst & Gemüse">
+        </div>
+        <div id="add-category-error" class="error-message hidden"></div>
+        <div class="modal-actions">
+          <button type="submit" class="btn btn-primary">
+            <ion-icon name="save-outline"></ion-icon> Hinzufügen
+          </button>
+          <button type="button" id="cancel-add-category-btn" class="btn btn-secondary">
+            <ion-icon name="close-outline"></ion-icon> Abbrechen
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Modal: Kategorie löschen bestätigen -->
+  <div id="delete-category-confirm-modal" class="modal hidden">
+    <div class="modal-content modal-small">
+      <h2>Kategorie löschen</h2>
+      <p>Möchtest du die Kategorie <strong id="delete-category-name"></strong> wirklich löschen?</p>
+      <p>Alle enthaltenen Items werden ebenfalls gelöscht.</p>
+      <p class="warning">Diese Aktion kann nicht rückgängig gemacht werden.</p>
+      <div class="modal-actions">
+        <button id="confirm-delete-category-btn" class="btn btn-danger">
+          <ion-icon name="trash-outline"></ion-icon> Löschen
+        </button>
+        <button id="cancel-delete-category-btn" class="btn btn-secondary">
           <ion-icon name="close-outline"></ion-icon> Abbrechen
         </button>
       </div>

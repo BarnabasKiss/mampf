@@ -173,6 +173,85 @@ router.post('/templates/:id/apply', (req: Request, res: Response) => {
   }
 });
 
+// ==================== Kategorien ====================
+
+// GET /api/shopping-list/categories - Alle Kategorien laden
+router.get('/categories', (req: Request, res: Response) => {
+  try {
+    const categories = shoppingService.getAllCategories();
+    res.json(categories);
+  } catch (error) {
+    console.error('Fehler beim Laden der Kategorien:', error);
+    res.status(500).json({ error: 'Fehler beim Laden der Kategorien.' });
+  }
+});
+
+// POST /api/shopping-list/categories - Kategorie erstellen
+router.post('/categories', (req: Request, res: Response) => {
+  try {
+    const { name } = req.body;
+    if (!name || typeof name !== 'string' || name.trim().length === 0) {
+      res.status(400).json({ error: 'Name ist erforderlich.' });
+      return;
+    }
+    const category = shoppingService.addCategory(name.trim());
+    res.status(201).json(category);
+  } catch (error) {
+    console.error('Fehler beim Erstellen der Kategorie:', error);
+    res.status(500).json({ error: 'Fehler beim Erstellen der Kategorie.' });
+  }
+});
+
+// PUT /api/shopping-list/categories/:id - Kategorie umbenennen
+router.put('/categories/:id', (req: Request, res: Response) => {
+  try {
+    const id = parseInt(req.params.id);
+    if (isNaN(id)) {
+      res.status(400).json({ error: 'Ungültige ID.' });
+      return;
+    }
+
+    const { name } = req.body;
+    if (!name || typeof name !== 'string' || name.trim().length === 0) {
+      res.status(400).json({ error: 'Name ist erforderlich.' });
+      return;
+    }
+
+    const category = shoppingService.renameCategory(id, name.trim());
+    if (!category) {
+      res.status(404).json({ error: 'Kategorie nicht gefunden.' });
+      return;
+    }
+
+    res.json(category);
+  } catch (error) {
+    console.error('Fehler beim Umbenennen der Kategorie:', error);
+    res.status(500).json({ error: 'Fehler beim Umbenennen der Kategorie.' });
+  }
+});
+
+// DELETE /api/shopping-list/categories/:id - Kategorie (inkl. Items) löschen
+router.delete('/categories/:id', (req: Request, res: Response) => {
+  try {
+    const id = parseInt(req.params.id);
+    if (isNaN(id)) {
+      res.status(400).json({ error: 'Ungültige ID.' });
+      return;
+    }
+
+    const result = shoppingService.deleteCategory(id);
+    if (!result.deleted) {
+      res.status(409).json({ error: 'Die letzte Kategorie kann nicht gelöscht werden.' });
+      return;
+    }
+
+    res.json({ success: true, deleted: result.itemsDeleted });
+  } catch (error) {
+    console.error('Fehler beim Löschen der Kategorie:', error);
+    res.status(500).json({ error: 'Fehler beim Löschen der Kategorie.' });
+  }
+});
+
 // ==================== Einkaufsliste ====================
 
 // GET /api/shopping-list - Alle Einkaufslisten-Items laden
@@ -200,6 +279,7 @@ router.post('/', (req: Request, res: Response) => {
           amount: (item.amount !== undefined && item.amount !== null && String(item.amount).trim() !== '')
             ? String(item.amount).trim()
             : '1',
+          category_id: item.category_id !== undefined && item.category_id !== null ? item.category_id : null,
         }));
 
       if (validItems.length === 0) {
@@ -218,9 +298,14 @@ router.post('/', (req: Request, res: Response) => {
       return;
     }
 
+    const categoryId = req.body.category_id !== undefined && req.body.category_id !== null
+      ? parseInt(req.body.category_id)
+      : null;
+
     const item = shoppingService.addItem(
       (name || '').trim(),
-      (amount !== undefined && amount !== null && String(amount).trim() !== '') ? String(amount).trim() : '1'
+      (amount !== undefined && amount !== null && String(amount).trim() !== '') ? String(amount).trim() : '1',
+      categoryId
     );
     res.status(201).json(item);
   } catch (error) {
@@ -288,11 +373,16 @@ router.put('/:id', (req: Request, res: Response) => {
       return;
     }
 
+    const categoryId = req.body.category_id !== undefined && req.body.category_id !== null
+      ? parseInt(req.body.category_id)
+      : undefined;
+
     const item = shoppingService.updateItem(
       id,
       name.trim(),
       (amount !== undefined && amount !== null && String(amount).trim() !== '') ? String(amount).trim() : '1',
-      checked ? 1 : 0
+      checked ? 1 : 0,
+      categoryId
     );
 
     if (!item) {

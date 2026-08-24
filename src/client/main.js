@@ -75,8 +75,8 @@ const api = {
     return this.request('GET', '/api/shopping-list');
   },
 
-  addShoppingItem(name, amount) {
-    return this.request('POST', '/api/shopping-list', { name, amount });
+  addShoppingItem(name, amount, categoryId) {
+    return this.request('POST', '/api/shopping-list', { name, amount, category_id: categoryId });
   },
 
   updateShoppingItem(id, data) {
@@ -93,6 +93,23 @@ const api = {
 
   addShoppingItemsFromMeals(items) {
     return this.request('POST', '/api/shopping-list/from-meals', { items });
+  },
+
+  // ===== Kategorien =====
+  getShoppingCategories() {
+    return this.request('GET', '/api/shopping-list/categories');
+  },
+
+  addShoppingCategory(name) {
+    return this.request('POST', '/api/shopping-list/categories', { name });
+  },
+
+  renameShoppingCategory(id, name) {
+    return this.request('PUT', '/api/shopping-list/categories/' + id, { name });
+  },
+
+  deleteShoppingCategory(id) {
+    return this.request('DELETE', '/api/shopping-list/categories/' + id);
   },
 
   // ===== Vorlagen =====
@@ -215,6 +232,7 @@ function initNavigation() {
 
       if (tab === 'shopping-list') {
         loadShoppingItems();
+        loadShoppingCategories();
         loadShoppingTemplates();
       }
     });
@@ -875,9 +893,15 @@ function initWeeklyPlan() {
 // ==================== Einkaufsliste ====================
 
 var shoppingItems = [];
+var shoppingCategories = [];
 var shoppingTemplates = [];
 var shoppingPollTimer = null;
 var shoppingPollActive = false;
+var collapsedCategories = {};
+var openCategoryMenu = null;
+var renamingCategoryId = null;
+
+// (Nicht-hardcodierte Kategorie-IDs der eingeklappten Sektionen werden unter 'null' gespeichert)
 
 function setSyncIndicator(state) {
   var indicator = document.getElementById('sync-indicator');
@@ -916,43 +940,262 @@ async function loadShoppingTemplates() {
   }
 }
 
+async function loadShoppingCategories() {
+  try {
+    shoppingCategories = await api.getShoppingCategories();
+    renderShoppingItems();
+  } catch (err) {
+    showToast('Fehler beim Laden der Kategorien: ' + err.message, 'error');
+  }
+}
+
 var shoppingInputFocused = false;
 
 function renderShoppingItems() {
-  var tbody = document.getElementById('shopping-tbody');
+  var container = document.getElementById('shopping-categories');
   var noItems = document.getElementById('no-shopping-items');
-  var tableContainer = document.querySelector('#shopping-list-container .table-responsive');
+  if (!container) return;
+  container.innerHTML = '';
 
-  tbody.innerHTML = '';
-
-  if (shoppingItems.length === 0) {
-    if (tableContainer) tableContainer.style.display = 'none';
+  if (shoppingItems.length === 0 && shoppingCategories.length === 0) {
     noItems.classList.remove('hidden');
-  } else {
-    if (tableContainer) tableContainer.style.display = '';
-    noItems.classList.add('hidden');
-
-    shoppingItems.forEach(function (item) {
-      var tr = document.createElement('tr');
-      tr.className = item.checked ? 'shopping-item-checked' : '';
-      tr.innerHTML =
-        '<td class="th-check-container">' +
-          '<input type="checkbox" class="shopping-checkbox" data-id="' + item.id + '"' + (item.checked ? ' checked' : '') + '>' +
-        '</td>' +
-        '<td class="shopping-name">' +
-          '<input type="text" class="shopping-input shopping-name-input" data-id="' + item.id + '" value="' + escapeHtml(item.name) + '" placeholder="Name">' +
-        '</td>' +
-        '<td class="shopping-amount">' +
-          '<input type="text" class="shopping-input shopping-amount-input" data-id="' + item.id + '" value="' + escapeHtml(item.amount) + '" placeholder="Menge">' +
-        '</td>' +
-        '<td class="actions-cell">' +
-          '<button class="btn-icon btn-icon-delete delete-shopping-btn" data-id="' + item.id + '" title="Löschen"><ion-icon name="trash-outline"></ion-icon></button>' +
-        '</td>';
-      tbody.appendChild(tr);
-    });
-
-    bindShoppingTableEvents(tbody);
+    return;
   }
+  noItems.classList.add('hidden');
+
+  var groups = groupShoppingItems();
+
+  groups.forEach(function (group) {
+    var section = document.createElement('div');
+    section.className = 'shopping-category';
+
+    var catId = group.category ? group.category.id : null;
+    var isCollapsed = collapsedCategories[catId] === true;
+    var isLast = shoppingCategories.length <= 1;
+
+    var header = document.createElement('div');
+    header.className = 'shopping-category-header';
+    header.setAttribute('data-id', catId === null ? 'null' : String(catId));
+
+    var chevronBtn = document.createElement('button');
+    chevronBtn.className = 'cat-collapse-btn';
+    chevronBtn.setAttribute('type', 'button');
+    chevronBtn.setAttribute('data-id', catId === null ? 'null' : String(catId));
+    chevronBtn.innerHTML = isCollapsed
+      ? '<ion-icon name="chevron-forward-outline"></ion-icon>'
+      : '<ion-icon name="chevron-down-outline"></ion-icon>';
+
+    var nameSpan = document.createElement('span');
+    nameSpan.className = 'cat-name';
+    nameSpan.textContent = group.category ? group.category.name : 'Allgemein';
+
+    header.appendChild(chevronBtn);
+    header.appendChild(nameSpan);
+
+    if (group.category) {
+      var menuBtn = document.createElement('button');
+      menuBtn.className = 'cat-menu-btn';
+      menuBtn.setAttribute('type', 'button');
+      menuBtn.setAttribute('data-id', catId);
+      menuBtn.title = 'Optionen';
+      menuBtn.textContent = '\u22ee';
+      header.appendChild(menuBtn);
+
+      if (openCategoryMenu === catId) {
+        var menu = document.createElement('div');
+        menu.className = 'cat-menu';
+
+        var renameItem = document.createElement('button');
+        renameItem.className = 'cat-menu-action';
+        renameItem.setAttribute('type', 'button');
+        renameItem.setAttribute('data-id', catId);
+        renameItem.setAttribute('data-action', 'rename');
+        renameItem.textContent = 'Umbenennen';
+
+        var deleteItem = document.createElement('button');
+        deleteItem.className = 'cat-menu-action';
+        deleteItem.setAttribute('type', 'button');
+        deleteItem.setAttribute('data-id', catId);
+        deleteItem.setAttribute('data-action', 'delete');
+        deleteItem.textContent = 'Löschen';
+        if (isLast) deleteItem.disabled = true;
+
+        menu.appendChild(renameItem);
+        menu.appendChild(deleteItem);
+        header.appendChild(menu);
+      }
+    }
+
+    section.appendChild(header);
+
+    var body = document.createElement('div');
+    body.className = 'shopping-category-body';
+    if (!isCollapsed) {
+      var table = document.createElement('table');
+      table.className = 'shopping-table';
+      var thead = document.createElement('thead');
+      var headRow = document.createElement('tr');
+      headRow.innerHTML =
+        '<th class="th-check"></th>' +
+        '<th>Name</th>' +
+        '<th class="th-amount">Menge</th>' +
+        '<th class="th-actions"></th>';
+      thead.appendChild(headRow);
+      table.appendChild(thead);
+
+      var tbody = document.createElement('tbody');
+      var sorted = group.items.slice().sort(function (a, b) {
+        return (a.checked ? 1 : 0) - (b.checked ? 1 : 0) || a.id - b.id;
+      });
+
+      sorted.forEach(function (item) {
+        var tr = document.createElement('tr');
+        tr.className = item.checked ? 'shopping-item-checked' : '';
+        tr.innerHTML =
+          '<td class="th-check-container">' +
+            '<input type="checkbox" class="shopping-checkbox" data-id="' + item.id + '"' + (item.checked ? ' checked' : '') + '>' +
+          '</td>' +
+          '<td class="shopping-name">' +
+            '<input type="text" class="shopping-input shopping-name-input" data-id="' + item.id + '" value="' + escapeHtml(item.name) + '" placeholder="Name">' +
+          '</td>' +
+          '<td class="shopping-amount">' +
+            '<input type="text" class="shopping-input shopping-amount-input" data-id="' + item.id + '" value="' + escapeHtml(item.amount) + '" placeholder="Menge">' +
+          '</td>' +
+          '<td class="actions-cell">' +
+            '<button class="btn-icon btn-icon-delete delete-shopping-btn" data-id="' + item.id + '" title="Löschen"><ion-icon name="trash-outline"></ion-icon></button>' +
+          '</td>';
+        tbody.appendChild(tr);
+      });
+
+      table.appendChild(tbody);
+      body.appendChild(table);
+
+      // "Zeile hinzufügen"-Button für jede Gruppe (inkl. "Allgemein")
+      var addRow = document.createElement('div');
+      addRow.className = 'shopping-add-row';
+      var addBtn = document.createElement('button');
+      addBtn.className = 'btn btn-primary btn-small cat-add-item-btn';
+      addBtn.setAttribute('type', 'button');
+      addBtn.setAttribute('data-id', catId === null ? 'null' : String(catId));
+      addBtn.innerHTML = '<ion-icon name="add-outline"></ion-icon> Zeile hinzufügen';
+      addRow.appendChild(addBtn);
+      body.appendChild(addRow);
+    }
+    section.appendChild(body);
+    container.appendChild(section);
+  });
+
+  bindShoppingCategoryEvents(container);
+}
+
+function groupShoppingItems() {
+  var groups = [];
+  var uncat = shoppingItems.filter(function (i) { return i.category_id === null || i.category_id === undefined; });
+  if (uncat.length > 0) {
+    groups.push({ category: null, items: uncat });
+  }
+  shoppingCategories.forEach(function (cat) {
+    var items = shoppingItems.filter(function (i) { return i.category_id == cat.id; });
+    groups.push({ category: cat, items: items });
+  });
+  return groups;
+}
+
+function bindShoppingCategoryEvents(container) {
+  // Header-Klick klappt die Kategorie auf/zu (Menü & Umbenennen sind ausgenommen)
+  container.querySelectorAll('.shopping-category-header').forEach(function (header) {
+    header.addEventListener('click', function () {
+      var idStr = this.getAttribute('data-id');
+      var key = idStr === 'null' ? null : parseInt(idStr, 10);
+      if (key !== null && renamingCategoryId === key) return;
+      openCategoryMenu = null;
+      collapsedCategories[key] = collapsedCategories[key] ? false : true;
+      renderShoppingItems();
+    });
+  });
+
+  container.querySelectorAll('.cat-menu-btn').forEach(function (btn) {
+    btn.addEventListener('click', function (e) {
+      e.stopPropagation();
+      var id = parseInt(this.getAttribute('data-id'), 10);
+      openCategoryMenu = (openCategoryMenu === id) ? null : id;
+      renderShoppingItems();
+    });
+  });
+
+  container.querySelectorAll('.cat-menu-action').forEach(function (btn) {
+    btn.addEventListener('click', function (e) {
+      e.stopPropagation();
+      var id = parseInt(this.getAttribute('data-id'), 10);
+      var action = this.getAttribute('data-action');
+      openCategoryMenu = null;
+      renderShoppingItems();
+      if (action === 'rename') {
+        startCategoryRename(id);
+      } else {
+        var cat = shoppingCategories.find(function (c) { return c.id === id; });
+        if (cat) openDeleteCategoryConfirm(cat);
+      }
+    });
+  });
+
+  container.querySelectorAll('.cat-add-item-btn').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      var idStr = this.getAttribute('data-id');
+      addShoppingCategoryItem(idStr === 'null' ? null : parseInt(idStr, 10));
+    });
+  });
+
+  bindShoppingTableEvents(container);
+}
+
+function startCategoryRename(id) {
+  var cat = shoppingCategories.find(function (c) { return c.id === id; });
+  if (!cat) return;
+
+  var header = document.querySelector('.shopping-category-header[data-id="' + id + '"]');
+  if (!header) return;
+
+  var nameSpan = header.querySelector('.cat-name');
+  if (!nameSpan) return;
+
+  var currentName = nameSpan.textContent;
+  var input = document.createElement('input');
+  input.type = 'text';
+  input.className = 'cat-rename-input';
+  input.value = currentName;
+  input.maxLength = 100;
+
+  header.replaceChild(input, nameSpan);
+  renamingCategoryId = id;
+  input.focus();
+  input.select();
+
+  var finish = function (save) {
+    var value = input.value.trim();
+    renamingCategoryId = null;
+    header.replaceChild(nameSpan, input);
+    if (!save || !value || value === currentName) return;
+    saveCategoryRename(id, value);
+  };
+
+  input.addEventListener('blur', function () { finish(true); });
+  input.addEventListener('keydown', function (e) {
+    if (e.key === 'Enter') input.blur();
+    else if (e.key === 'Escape') finish(false);
+  });
+}
+
+async function saveCategoryRename(id, newName) {
+  try {
+    await api.renameShoppingCategory(id, newName);
+    var cat = shoppingCategories.find(function (c) { return c.id === id; });
+    if (cat) cat.name = newName;
+    showToast('Kategorie umbenannt.', 'success');
+  } catch (err) {
+    showToast('Fehler beim Umbenennen: ' + err.message, 'error');
+  }
+  renderShoppingItems();
 }
 
 function bindShoppingTableEvents(container) {
@@ -1012,8 +1255,7 @@ async function saveShoppingInput(input) {
 
   if (isName) {
     if (!newValue) {
-      // Leerer Name → Item löschen
-      await deleteShoppingItem(id);
+      // Leerer Name → Zeile behalten, damit mehrere leere Zeilen angelegt werden können
       return;
     }
     if (newValue === item.name) return;
@@ -1032,13 +1274,9 @@ async function saveShoppingInput(input) {
   }
 }
 
-function addShoppingItemRow() {
-  addShoppingItem('', '1');
-}
-
-async function addShoppingItem(name, amount) {
+async function addShoppingCategoryItem(categoryId) {
   try {
-    await api.addShoppingItem(name, amount || '1');
+    await api.addShoppingItem('', '1', categoryId);
     await loadShoppingItems();
     // Fokus auf den neuen Namen-Input setzen
     var inputs = document.querySelectorAll('.shopping-name-input');
@@ -1056,6 +1294,52 @@ async function deleteShoppingItem(id) {
     await loadShoppingItems();
   } catch (err) {
     showToast('Fehler beim Löschen: ' + err.message, 'error');
+  }
+}
+
+function openAddCategoryModal() {
+  document.getElementById('new-category-name').value = '';
+  document.getElementById('add-category-error').classList.add('hidden');
+  showModal('add-category-modal');
+}
+
+async function addCategory(name) {
+  try {
+    await api.addShoppingCategory(name);
+    showToast('Kategorie hinzugefügt.', 'success');
+    hideModal('add-category-modal');
+    await loadShoppingCategories();
+    await loadShoppingItems();
+  } catch (err) {
+    document.getElementById('add-category-error').textContent = err.message || 'Fehler beim Hinzufügen.';
+    document.getElementById('add-category-error').classList.remove('hidden');
+  }
+}
+
+var deleteCategoryId = null;
+
+function openDeleteCategoryConfirm(cat) {
+  deleteCategoryId = cat.id;
+  document.getElementById('delete-category-name').textContent = cat.name;
+  showModal('delete-category-confirm-modal');
+}
+
+async function deleteCategory() {
+  if (!deleteCategoryId) return;
+  var id = deleteCategoryId;
+  deleteCategoryId = null;
+  try {
+    var result = await api.deleteShoppingCategory(id);
+    hideModal('delete-category-confirm-modal');
+    var msg = 'Kategorie gelöscht.';
+    if (result.deleted > 0) msg += ' (' + result.deleted + ' Item(s) entfernt)';
+    showToast(msg, 'success');
+    await loadShoppingCategories();
+    await loadShoppingItems();
+  } catch (err) {
+    hideModal('delete-category-confirm-modal');
+    showToast('Fehler beim Löschen: ' + err.message, 'error');
+    await loadShoppingCategories();
   }
 }
 
@@ -1258,7 +1542,7 @@ async function addWeeklyPlanToShoppingList() {
       var packages = calculatePackages(ing.package_count, planItem.meal.standard_portions, planItem.portions);
       items.push({
         name: ing.name,
-        amount: packages + ' Stk.',
+        amount: String(packages),
       });
     });
   });
@@ -1284,7 +1568,8 @@ function startShoppingPolling() {
     if (!shoppingPollActive) return;
     try {
       var items = await api.getShoppingItems();
-      var changed = items.length !== shoppingItems.length ||
+      var cats = await api.getShoppingCategories();
+      var itemsChanged = items.length !== shoppingItems.length ||
         items.some(function (item, index) {
           var current = shoppingItems[index];
           return !current ||
@@ -1293,8 +1578,14 @@ function startShoppingPolling() {
             current.amount !== item.amount ||
             current.checked !== item.checked;
         });
-      if (changed && !shoppingInputFocused) {
+      var catsChanged = cats.length !== shoppingCategories.length ||
+        cats.some(function (cat, index) {
+          var current = shoppingCategories[index];
+          return !current || current.id !== cat.id || current.name !== cat.name;
+        });
+      if ((itemsChanged || catsChanged) && !shoppingInputFocused) {
         shoppingItems = items;
+        shoppingCategories = cats;
         renderShoppingItems();
       }
       setSyncIndicator('ok');
@@ -1312,8 +1603,35 @@ function stopShoppingPolling() {
 }
 
 function initShoppingList() {
-  document.getElementById('add-shopping-item-btn').addEventListener('click', function () {
-    addShoppingItemRow();
+  // Neue Kategorie
+  document.getElementById('add-category-btn').addEventListener('click', function () {
+    openAddCategoryModal();
+  });
+
+  document.getElementById('cancel-add-category-btn').addEventListener('click', function () {
+    hideModal('add-category-modal');
+  });
+
+  document.getElementById('add-category-form').addEventListener('submit', async function (e) {
+    e.preventDefault();
+    var name = document.getElementById('new-category-name').value.trim();
+    if (!name) {
+      document.getElementById('add-category-error').textContent = 'Name ist erforderlich.';
+      document.getElementById('add-category-error').classList.remove('hidden');
+      return;
+    }
+    await addCategory(name);
+  });
+
+  // Kategorie löschen
+  document.getElementById('confirm-delete-category-btn').addEventListener('click', function () {
+    if (!deleteCategoryId) return;
+    deleteCategory();
+  });
+
+  document.getElementById('cancel-delete-category-btn').addEventListener('click', function () {
+    hideModal('delete-category-confirm-modal');
+    deleteCategoryId = null;
   });
 
   document.getElementById('clear-checked-btn').addEventListener('click', function () {

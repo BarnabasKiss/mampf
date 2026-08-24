@@ -42,6 +42,19 @@ export function initializeDatabase(): void {
     database.exec(migration);
     console.log(`Migration ausgeführt: ${file}`);
   }
+
+  ensureShoppingItemCategoryColumn(database);
+}
+
+// Fügt die Kategorie-Spalte zu shopping_list_items hinzu, falls sie fehlt.
+// (ALTER TABLE ist nicht idempotent und kann nicht sicher in einer .sql-Migration laufen,
+//  da die Migrationsdateien bei jedem Start erneut ausgeführt werden.)
+function ensureShoppingItemCategoryColumn(database: Database.Database): void {
+  const columns = database.pragma('table_info(shopping_list_items)') as { name: string }[];
+  if (!columns.some(col => col.name === 'category_id')) {
+    database.exec('ALTER TABLE shopping_list_items ADD COLUMN category_id INTEGER');
+    console.log('Spalte category_id zu shopping_list_items hinzugefügt.');
+  }
 }
 
 export function closeDatabase(): void {
