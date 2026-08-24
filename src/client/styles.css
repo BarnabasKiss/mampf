@@ -1357,7 +1357,6 @@ main {
 
   .shopping-table th:last-child {
     background: var(--color-bg);
-    border-bottom: none;
   }
 
   .actions-cell {
