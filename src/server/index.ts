@@ -3,6 +3,7 @@ import session from 'express-session';
 import path from 'path';
 import fs from 'fs';
 import { initializeDatabase } from './database';
+import { SqliteSessionStore } from './session-store';
 import authRoutes from './routes/auth.routes';
 import mealsRoutes from './routes/meals.routes';
 import shoppingRoutes from './routes/shopping.routes';
@@ -16,14 +17,16 @@ app.use(express.json());
 
 // Session-Konfiguration
 app.use(session({
+  store: new SqliteSessionStore(),
   secret: SESSION_SECRET,
   resave: false,
   saveUninitialized: false,
+  rolling: true,
   cookie: {
     httpOnly: true,
     sameSite: 'strict',
     secure: false, // Bei HTTPS auf true setzen
-    maxAge: 24 * 60 * 60 * 1000, // 24 Stunden
+    maxAge: 10 * 365 * 24 * 60 * 60 * 1000, // 10 Jahre – kein automatischer Logout
   },
 }));
 

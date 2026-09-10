@@ -1391,3 +1391,14 @@ main {
     margin-left: 0;
   }
 }
+
+/*
+ * PWA: Abstände für iPhone-Notch und Home-Indikator
+ */
+body {
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+
+header {
+  padding-top: calc(12px + env(safe-area-inset-top, 0px));
+}
