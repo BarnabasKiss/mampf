@@ -14,7 +14,7 @@ Der Client ist reines JavaScript/CSS/HTML unter `src/client` und wird beim Build
 
 ```bash
 npm run typecheck   # tsc ohne Ausgabe
-npm test            # Server (node:test, In-Memory-SQLite, HTTP-Integrationstest) + Client-Domänenlogik
+npm test            # Server (node:test, In-Memory-SQLite, HTTP-Integrationstest) + Client-Domänenlogik + Anna-Jahreszeiten
 ```
 
 CI (`.github/workflows/ci.yml`) führt Typecheck, Build und Tests bei Pull Requests und auf `main` aus; der Docker-Build (`docker-build.yml`) pusht nur nach grünen Tests.
@@ -45,6 +45,7 @@ CI (`.github/workflows/ci.yml`) führt Typecheck, Build und Tests bei Pull Reque
   cp icon-512.png icon-maskable-512.png
   ```
 - UI-Icons: `src/client/icons/sprite.svg` enthält ausgewählte Ionicons als `<symbol id="i-…">`. Benutzt wird `icon('name')` in JS bzw. `<svg class="icon"><use href="/icons/sprite.svg#i-name"/></svg>` in HTML. Für ein neues Icon das `-outline`-SVG aus Ionicons als weiteres `<symbol>` ergänzen und in `sw.js` `CACHE_NAME` erhöhen.
+- Dunkelmodus: Farben sind Tokens in `styles.css`. Der dunkle Satz steht **zweimal** (Systemeinstellung per `prefers-color-scheme` und manuell per `data-theme="dark"`) – beide Blöcke gleich halten. Die Wahl (Auto/Hell/Dunkel) liegt im `localStorage` unter `mampf.theme`.
 - Theme-Farbe: `manifest.json` (`theme_color`) und die `theme-color`-Meta-Tags in `index.html` zusammen ändern.
 
 ## Release
@@ -59,4 +60,5 @@ Push auf `main` ⇒ CI ⇒ Image `ghcr.io/barnabaskiss/mampf:latest` (zusätzlic
 | Container startet nicht, Schreibfehler auf `/app/data` | `chown 1000:1000 data` |
 | Login klappt, wird aber sofort vergessen | `COOKIE_SECURE=true` ohne HTTPS (oder umgekehrt hinter einem Proxy fehlt `TRUST_PROXY`) |
 | `429` beim Login | Login-Limit: 10 Fehlversuche pro 15 Minuten und IP |
+| Nach einer Wischgeste reagiert der nächste Tipp nicht | `touchmove` im Swipe-Handler muss `{passive:false}` + `preventDefault()` behalten |
 | Alte UI nach Update | Service-Worker-Cache: `CACHE_NAME` erhöhen, App neu laden |

@@ -145,7 +145,7 @@ async function addPlanToShoppingList() {
   }
   try {
     await shoppingApi.addFromMeals(items);
-    showToast(`${items.length} Zutaten zur Einkaufsliste hinzugefügt.`, 'success');
+    showToast('Zutaten zur Einkaufsliste hinzugefügt.', 'success');
   } catch (err) {
     showToast(`Fehler beim Hinzufügen: ${err.message}`, 'error');
   }
@@ -229,6 +229,17 @@ export async function onPlanTabShown() {
     syncPlanWithCatalog();
   }
   renderPlan();
+}
+
+/** Ersetzt den Plan durch die übergebenen Gerichte (z. B. aus dem „Bauchgefühl“-Automaten des Anna-Themes). */
+export function loadMealsIntoPlan(meals) {
+  setPlan(meals.map((meal) => ({ meal, portions: meal.standard_portions })));
+}
+
+/** Lädt Gerichte neu und gleicht den Plan ab (z. B. per Pull-to-refresh). */
+export function refreshPlanData() {
+  catalogStale = true;
+  return onPlanTabShown();
 }
 
 export function initPlan() {

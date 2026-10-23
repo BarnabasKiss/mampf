@@ -10,7 +10,7 @@
     "dev": "npm run build && node --env-file=.env --watch-path=dist dist/server/index.js",
     "migrate": "node --env-file=.env dist/server/migrate.js",
     "typecheck": "tsc --noEmit -p tsconfig.json",
-    "test": "tsc -p tsconfig.json --outDir dist-test && node scripts/run-tests.js dist-test && node --test src/client/js/*.test.mjs"
+    "test": "tsc -p tsconfig.json --outDir dist-test && node scripts/run-tests.js dist-test && node --test src/client/js/*.test.mjs src/client/anna/*.test.mjs"
   },
   "dependencies": {
     "better-sqlite3": "^11.7.0",

@@ -78,7 +78,8 @@ function renderShopping() {
   const container = byId('shopping-categories');
   const isEmpty = items.length === 0 && categories.length === 0;
   setVisible(byId('no-shopping-items'), isEmpty);
-  render(container, isEmpty ? [] : groupShoppingItems(items, categories).map(categorySection));
+  // „Allgemein“ bleibt auch bei leerer Liste sichtbar, damit man direkt Zeilen hinzufügen kann.
+  render(container, groupShoppingItems(items, categories).map(categorySection));
 
   if (focusItemId !== null) {
     container.querySelector(`[data-item-id="${focusItemId}"] .shopping-name-input`)?.focus();
@@ -174,7 +175,7 @@ function renameInput(category) {
 }
 
 function itemRow(item) {
-  return el('div', { class: `shopping-item${item.checked ? ' checked' : ''}`, dataset: { itemId: item.id } },
+  const row = el('div', { class: `shopping-item${item.checked ? ' checked' : ''}` },
     el('input', {
       type: 'checkbox', class: 'shopping-checkbox', checked: Boolean(item.checked), 'aria-label': 'Erledigt',
       onchange: (event) => toggleChecked(item, event.target.checked),
@@ -191,8 +192,76 @@ function itemRow(item) {
     }),
     el('button', {
       type: 'button', class: 'btn-icon btn-icon-delete', title: 'Löschen', 'aria-label': `${item.name || 'Zeile'} löschen`,
-      onclick: () => removeItem(item.id),
+      onclick: () => removeItem(item),
     }, icon('trash')));
+
+  const wrap = el('div', { class: 'shopping-swipe', dataset: { itemId: item.id } },
+    el('div', { class: 'swipe-hint', 'aria-hidden': 'true' }, icon('checkmark-done'), icon('trash')),
+    row);
+  enableSwipe(wrap, row, {
+    onRight: () => toggleChecked(item, !item.checked),
+    onLeft: () => removeItem(item),
+  });
+  return wrap;
+}
+
+const SWIPE_THRESHOLD = 80;
+
+/**
+ * Wischgesten auf Touch-Geräten: nach rechts = abhaken/zurücksetzen, nach links = löschen.
+ * `touch-action: pan-y` (CSS) lässt vertikales Scrollen unberührt.
+ */
+function enableSwipe(wrap, row, { onRight, onLeft }) {
+  let startX = 0;
+  let startY = 0;
+  let dx = 0;
+  let mode = null; // null (unentschieden) | 'swipe' | 'scroll'
+
+  const reset = () => {
+    row.style.transform = '';
+    wrap.classList.remove('swipe-right', 'swipe-left', 'swipe-armed');
+  };
+
+  wrap.addEventListener('touchstart', (event) => {
+    if (event.touches.length !== 1) return;
+    startX = event.touches[0].clientX;
+    startY = event.touches[0].clientY;
+    dx = 0;
+    mode = null;
+    row.classList.add('dragging');
+  }, { passive: true });
+
+  wrap.addEventListener('touchmove', (event) => {
+    if (mode === 'scroll') return;
+    const moveX = event.touches[0].clientX - startX;
+    const moveY = event.touches[0].clientY - startY;
+    if (mode === null) {
+      if (Math.abs(moveX) < 8 && Math.abs(moveY) < 8) return;
+      mode = Math.abs(moveX) > Math.abs(moveY) * 1.5 ? 'swipe' : 'scroll';
+      if (mode === 'swipe') document.activeElement?.blur();
+    }
+    if (mode !== 'swipe') return;
+    if (event.cancelable) event.preventDefault(); // Geste gehört uns – verhindert Folge-Effekte (z. B. verschluckter nächster Tipp)
+    dx = moveX;
+    row.style.transform = `translateX(${dx}px)`;
+    wrap.classList.toggle('swipe-right', dx > 0);
+    wrap.classList.toggle('swipe-left', dx < 0);
+    wrap.classList.toggle('swipe-armed', Math.abs(dx) >= SWIPE_THRESHOLD);
+  }, { passive: false });
+
+  const finish = (cancelled) => {
+    row.classList.remove('dragging');
+    const swiped = mode === 'swipe' && !cancelled;
+    const distance = dx;
+    mode = null;
+    dx = 0;
+    reset();
+    if (!swiped) return;
+    if (distance >= SWIPE_THRESHOLD) onRight();
+    else if (distance <= -SWIPE_THRESHOLD) onLeft();
+  };
+  wrap.addEventListener('touchend', () => finish(false));
+  wrap.addEventListener('touchcancel', () => finish(true));
 }
 
 const blurOnEnter = (event) => {
@@ -248,23 +317,45 @@ async function addItem(categoryId) {
   }
 }
 
-async function removeItem(id) {
+async function removeItem(item) {
   try {
-    await shoppingApi.removeItem(id);
+    await shoppingApi.removeItem(item.id);
     await refreshShopping();
+    if (item.name) offerUndo('Artikel gelöscht.', [item]);
   } catch (err) {
     showToast(`Fehler beim Löschen: ${err.message}`, 'error');
   }
 }
 
 async function clearChecked() {
+  const removed = items.filter((item) => item.checked);
   try {
     const { deleted } = await shoppingApi.clearChecked();
-    showToast(deleted > 0 ? `${deleted} Artikel gelöscht.` : 'Keine abgehakten Artikel vorhanden.', deleted > 0 ? 'success' : 'error');
     await refreshShopping();
+    if (deleted > 0) offerUndo(`${deleted} Artikel gelöscht.`, removed);
+    else showToast('Keine abgehakten Artikel vorhanden.', 'error');
   } catch (err) {
     showToast(`Fehler beim Löschen: ${err.message}`, 'error');
   }
+}
+
+function offerUndo(message, removed) {
+  showToast(message, 'success', { label: 'Rückgängig', onClick: () => restoreItems(removed) });
+}
+
+/** Legt gelöschte Artikel (inkl. Kategorie und Haken) neu an. */
+async function restoreItems(removed) {
+  try {
+    for (const item of removed) {
+      const categoryId = categories.some((c) => c.id === item.category_id) ? item.category_id : null;
+      const created = await shoppingApi.addItem(item.name, item.amount, categoryId);
+      if (item.checked) await shoppingApi.updateItem(created.id, { name: item.name, amount: item.amount, checked: 1 });
+    }
+    showToast('Wiederhergestellt.', 'success');
+  } catch (err) {
+    showToast(`Fehler beim Wiederherstellen: ${err.message}`, 'error');
+  }
+  await refreshShopping();
 }
 
 // ==================== Kategorien ====================

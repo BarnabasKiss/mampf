@@ -138,25 +138,64 @@ export function clearCheckedItems(): number {
   return result.changes;
 }
 
+const NUMERIC_AMOUNT = /^\d+(?:[.,]\d+)?$/;
+
+const parseAmount = (amount: string): number | null =>
+  NUMERIC_AMOUNT.test(amount.trim()) ? parseFloat(amount.trim().replace(',', '.')) : null;
+
+/** Formatiert eine Summe; übernimmt das Komma, wenn eine der Mengen eines verwendet hat. */
+function formatAmount(value: number, useComma: boolean): string {
+  const text = String(Math.round(value * 100) / 100);
+  return useComma ? text.replace('.', ',') : text;
+}
+
+/**
+ * Fügt Zutaten aus dem Wochenplan hinzu und führt Gleiches zusammen:
+ *  - gleiche Namen (ohne Groß-/Kleinschreibung) werden innerhalb der Anfrage addiert,
+ *  - ein bereits vorhandener, nicht abgehakter Artikel mit gleichem Namen wird hochgezählt.
+ * Zusammengeführt wird nur bei rein numerischen Mengen ("2" + "1" = "3");
+ * andere Mengen ("500 g") bleiben getrennt bzw. werden mit " + " verbunden.
+ */
 export function addItemsFromMeals(items: { name: string; amount: string }[]): ShoppingItem[] {
-  // Deduplizieren: Gleiche Namen zusammenfassen
-  const merged = new Map<string, string>();
+  const merged = new Map<string, { name: string; amounts: string[] }>();
   for (const item of items) {
     const key = item.name.trim().toLowerCase();
-    if (merged.has(key)) {
-      merged.set(key, merged.get(key)! + ' + ' + item.amount);
-    } else {
-      merged.set(key, item.amount);
-    }
+    const entry = merged.get(key);
+    if (entry) entry.amounts.push(item.amount);
+    else merged.set(key, { name: item.name.trim(), amounts: [item.amount] });
   }
 
-  const finalItems = Array.from(merged.entries()).map(([name, amount]) => ({
-    name: name.charAt(0).toUpperCase() + name.slice(1),
-    amount,
-    category_id: null,
-  }));
+  const db = getDatabase();
+  const toInsert: NewShoppingItem[] = [];
 
-  return addItems(finalItems);
+  db.transaction(() => {
+    const existing = db
+      .prepare('SELECT id, name, amount FROM shopping_list_items WHERE checked = 0 ORDER BY id ASC')
+      .all() as { id: number; name: string; amount: string }[];
+    const update = db.prepare("UPDATE shopping_list_items SET amount = ?, updated_at = datetime('now') WHERE id = ?");
+
+    for (const [key, { name, amounts }] of merged) {
+      const numbers = amounts.map(parseAmount);
+      const allNumeric = numbers.every((n): n is number => n !== null);
+      const useComma = amounts.some(a => a.includes(','));
+
+      const match = allNumeric
+        ? existing.find(e => e.name.trim().toLowerCase() === key && parseAmount(e.amount) !== null)
+        : undefined;
+
+      if (match) {
+        const total = (numbers as number[]).reduce((a, b) => a + b, parseAmount(match.amount)!);
+        update.run(formatAmount(total, useComma || match.amount.includes(',')), match.id);
+      } else {
+        const amount = allNumeric
+          ? formatAmount((numbers as number[]).reduce((a, b) => a + b, 0), useComma)
+          : amounts.join(' + ');
+        toInsert.push({ name, amount, category_id: null });
+      }
+    }
+  })();
+
+  return addItems(toInsert);
 }
 
 // ==================== Kategorien ====================

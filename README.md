@@ -6,10 +6,11 @@ Mampf ist eine deutschsprachige Web-App (PWA) für den Haushalt: eine **gemeinsa
 
 | Bereich | Was geht |
 |---|---|
-| **Einkaufsliste** (Startansicht) | Kategorien anlegen/umbenennen/löschen und ein-/ausklappen, Zeilen direkt bearbeiten, abhaken, Abgehakte löschen, Live-Synchronisierung zwischen Geräten (Polling), Vorlagen speichern/verwalten/anwenden |
-| **Gerichte** | Anlegen, bearbeiten, duplizieren, löschen, durchsuchen; Zutaten in Packungen, Schwierigkeit 1–3, Standardportionen |
-| **Wochenplan** | 3 zufällige Gerichte, einzelne ersetzen/entfernen/ergänzen, Portionen anpassen (Mengen werden aufgerundet), WhatsApp-Text kopieren, Zutaten zur Einkaufsliste hinzufügen; bleibt nach einem App-Neustart erhalten |
-| **PWA** | Installierbar, offlinefähige App-Shell, Dunkelmodus, Tab-Leiste unten auf dem Handy |
+| **Einkaufsliste** (Startansicht) | Kategorien anlegen/umbenennen/löschen und ein-/ausklappen, Zeilen direkt bearbeiten, abhaken, Abgehakte löschen, **Rückgängig** nach dem Löschen, **Wischgesten** am Handy (rechts = abhaken, links = löschen), Pull-to-refresh, Live-Synchronisierung zwischen Geräten (Polling), Vorlagen speichern/verwalten/anwenden |
+| **Gerichte** | Anlegen, bearbeiten, duplizieren, löschen, durchsuchen, nach Schwierigkeit filtern, sortieren (Name, zuletzt geändert, Schwierigkeit); Zutaten in Packungen, Schwierigkeit 1–3, Standardportionen |
+| **Wochenplan** | 3 zufällige Gerichte, einzelne ersetzen/entfernen/ergänzen, Portionen anpassen (Mengen werden aufgerundet), WhatsApp-Text kopieren, Zutaten zur Einkaufsliste hinzufügen (gleiche Zutaten werden addiert, auch mit schon vorhandenen Artikeln); bleibt nach einem App-Neustart erhalten |
+| **PWA** | Installierbar, offlinefähige App-Shell, Dunkelmodus (automatisch oder per Umschalter in der Kopfzeile), Tab-Leiste unten auf dem Handy |
+| **Anna-Modus** | Optionales, verspieltes Theme mit Jahreszeiten, Maskottchen, Animationen und Überraschungen – Schalter in der Fußzeile, Details in [docs/anna-theme.md](docs/anna-theme.md) |
 | **Sicherheit** | Session-Login, Login-Limit, Abmelden nur nach Bestätigung |
 
 ## Schnellstart
@@ -76,9 +77,10 @@ Gegenüber früheren Versionen gilt jetzt:
 ## Weiterführende Doku
 
 - [Architektur](docs/architecture.md) – Aufbau, Datenmodell, API
+- [Anna-Theme](docs/anna-theme.md) – das verspielte Zusatz-Theme
 - [Entwicklung](docs/development.md) – Konventionen, Tests, Migrationen, PWA/Icons, Release
 - [CLAUDE.md](CLAUDE.md) – Kurzleitfaden für die Arbeit mit Claude Code
 
 ## Lizenzen
 
-Die Icons in `src/client/icons/sprite.svg` stammen aus [Ionicons](https://ionic.io/ionicons) (MIT).
+Die Icons in `src/client/icons/sprite.svg` stammen aus [Ionicons](https://ionic.io/ionicons) (MIT). Die Schriften des Anna-Themes (Fredoka, Caveat in `src/client/anna/fonts/`) stehen unter der [SIL Open Font License](https://openfontlicense.org).

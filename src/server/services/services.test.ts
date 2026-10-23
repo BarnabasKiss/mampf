@@ -75,13 +75,35 @@ test('shopping: Items, Abhaken, Löschen', () => {
   assert.ok(shopping.deleteItem(shopping.getAllItems()[0].id!));
 });
 
-test('shopping: addItemsFromMeals fasst gleiche Namen zusammen', () => {
+test('shopping: addItemsFromMeals addiert gleiche Zutaten', () => {
   const result = shopping.addItemsFromMeals([
     { name: 'zwiebel', amount: '1' },
     { name: 'Zwiebel', amount: '2' },
     { name: 'Mehl', amount: '1' },
+    { name: 'Öl', amount: '500 g' },
+    { name: 'öl', amount: '1' },
   ]);
-  assert.deepEqual(result.map(i => [i.name, i.amount]), [['Zwiebel', '1 + 2'], ['Mehl', '1']]);
+  assert.deepEqual(result.map(i => [i.name, i.amount]), [['zwiebel', '3'], ['Mehl', '1'], ['Öl', '500 g + 1']]);
+});
+
+test('shopping: addItemsFromMeals zählt vorhandene, nicht abgehakte Artikel hoch', () => {
+  const cat = shopping.addCategory('Gemüse');
+  const onion = shopping.addItem('Zwiebel', '2', cat.id);
+  const checked = shopping.addItem('Mehl', '1');
+  shopping.updateItem(checked.id!, 'Mehl', '1', 1);
+  shopping.addItem('Butter', '250 g');
+
+  const result = shopping.addItemsFromMeals([
+    { name: 'zwiebel', amount: '1' },
+    { name: 'Mehl', amount: '1' },     // vorhandener Artikel ist abgehakt → neue Zeile
+    { name: 'Butter', amount: '1' },   // vorhandene Menge nicht numerisch → neue Zeile
+  ]);
+
+  assert.equal(result.find(i => i.id === onion.id)!.amount, '3');
+  assert.equal(result.find(i => i.id === onion.id)!.category_id, cat.id);
+  assert.equal(result.filter(i => i.name === 'Mehl').length, 2);
+  assert.equal(result.filter(i => i.name === 'Butter').length, 2);
+  assert.equal(result.filter(i => i.name.toLowerCase() === 'zwiebel').length, 1);
 });
 
 test('shopping: Kategorien – letzte nicht löschbar, Items werden mitgelöscht', () => {

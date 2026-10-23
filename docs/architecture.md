@@ -36,11 +36,14 @@ src/client/
     domain.js         Reine Fachlogik (Mengenrechnung, WhatsApp-Text, Gruppierung) – getestet
     auth.js           Login, Logout mit Bestätigungs-Popup
     tabs.js           Tab-Navigation (Standard: Einkaufsliste)
+    theme.js          Farbschema-Umschalter (Auto/Hell/Dunkel), theme-init.js setzt es vor dem Rendern
     shopping.js       Einkaufsliste, Kategorien, Polling
     templates.js      Einkaufslisten-Vorlagen
     meals.js          Gerichte
     plan.js           Wochenplan (Persistenz im localStorage)
     storage.js        Fehlertoleranter localStorage-Zugriff
+    pull-to-refresh.js  Ziehen zum Aktualisieren (Touch)
+  anna/               Optionales Anna-Theme (CSS, Maskottchen, Effekte) – siehe docs/anna-theme.md
 migrations/           Nummerierte SQL-Dateien (001 … 004)
 scripts/              copy-client.js (Build), run-tests.js
 ```
@@ -80,6 +83,9 @@ Alle Routen außer Login, Session-Abfrage und `/healthz` verlangen eine Anmeldun
 - **Dialoge** sind native `<dialog>`-Elemente (`openModal`/`closeModal`). Für Rückfragen gibt es **einen** generischen `confirmDialog({title, body, confirmLabel, danger})`, der ein Promise<boolean> liefert – genutzt für Abmelden und alle Lösch-Aktionen. Ein Klick neben den Dialog schließt ihn bewusst nicht.
 - **Einkaufsliste:** Änderungen werden optimistisch angezeigt; Schreibzugriffe werden getrackt, damit ein Refresh sie nicht überholt. Gepollt wird alle 3 s, nur solange der Tab sichtbar ist, und nie, während in der Liste getippt wird.
 - **Wochenplan** speichert nur Gericht-ID und Portionen im `localStorage` und gleicht sie beim Anzeigen mit den aktuellen Gerichten ab (gelöschte fallen heraus).
+- **Rückgängig:** Gelöschte Artikel werden bei „Rückgängig“ neu angelegt (neue ID, gleiche Kategorie und Haken); `showToast` kann dafür einen Aktions-Button anzeigen. Ist die Kategorie inzwischen gelöscht, landet der Artikel in „Allgemein“.
+- **Wischgesten** (`enableSwipe` in `shopping.js`): nur Touch; `touch-action: pan-y` lässt Scrollen zu, `touchmove` ist nicht-passiv und ruft `preventDefault()`, sobald die Geste als horizontales Wischen erkannt ist (sonst geht der nächste Tipp verloren).
+- **Zutaten zusammenführen** passiert serverseitig (`addItemsFromMeals`): gleiche Namen ohne Beachtung der Groß-/Kleinschreibung, nur bei rein numerischen Mengen („2“ + „1“ = „3“); Mengen wie „500 g“ bleiben getrennt.
 - **Sitzungsablauf:** Antwortet die API mit 401, zeigt die App automatisch den Login.
 - **Events:** `auth:expired` (api → main), `meals:changed` (meals → plan).
 

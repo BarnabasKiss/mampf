@@ -5,8 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
   <title>Mampf</title>
   <meta name="description" content="Einkaufsliste, Gerichte und Wochenplan">
-  <meta name="theme-color" content="#2b8a3e" media="(prefers-color-scheme: light)">
-  <meta name="theme-color" content="#14231a" media="(prefers-color-scheme: dark)">
+  <meta name="theme-color" content="#2b8a3e">
   <meta name="color-scheme" content="light dark">
   <link rel="manifest" href="/manifest.json">
   <meta name="mobile-web-app-capable" content="yes">
@@ -17,6 +16,7 @@
   <link rel="icon" type="image/svg+xml" href="/icons/icon.svg">
   <link rel="icon" type="image/png" sizes="32x32" href="/icons/icon-32.png">
   <link rel="stylesheet" href="/styles.css">
+  <script src="/js/theme-init.js"></script>
   <script type="module" src="/js/main.js"></script>
 </head>
 <body>
@@ -64,6 +64,7 @@
           <span class="tab-label">Wochenplan</span>
         </button>
       </nav>
+      <button id="theme-btn" class="btn-icon btn-icon-theme" type="button"></button>
       <button id="logout-btn" class="btn-icon btn-icon-logout" type="button" title="Abmelden" aria-label="Abmelden">
         <svg class="icon" aria-hidden="true"><use href="/icons/sprite.svg#i-log-out"/></svg>
       </button>
@@ -110,6 +111,25 @@
             <svg class="icon" aria-hidden="true"><use href="/icons/sprite.svg#i-add"/></svg> Neues Gericht
           </button>
         </div>
+        <div class="filter-row">
+          <label class="filter-field">
+            <span>Schwierigkeit</span>
+            <select id="meal-difficulty-filter">
+              <option value="0">Alle</option>
+              <option value="1">Einfach</option>
+              <option value="2">Mittel</option>
+              <option value="3">Schwer</option>
+            </select>
+          </label>
+          <label class="filter-field">
+            <span>Sortierung</span>
+            <select id="meal-sort">
+              <option value="name">Name A–Z</option>
+              <option value="recent">Zuletzt geändert</option>
+              <option value="difficulty">Schwierigkeit</option>
+            </select>
+          </label>
+        </div>
         <div id="meals-grid" class="meals-grid"></div>
         <div id="no-meals" class="empty-state hidden">
           <svg class="icon empty-icon" aria-hidden="true"><use href="/icons/sprite.svg#i-restaurant"/></svg>
@@ -144,6 +164,16 @@
         </div>
       </section>
     </main>
+
+    <footer class="app-footer">
+      <span class="footer-note">Mampf · mit Liebe gekocht</span>
+      <label class="anna-switch" title="Verspieltes Theme mit Jahreszeiten, Maskottchen und Überraschungen">
+        <input type="checkbox" id="anna-toggle" role="switch">
+        <span class="anna-switch-track" aria-hidden="true"></span>
+        <span class="anna-switch-label">Anna-Modus</span>
+      </label>
+      <div id="anna-controls" class="anna-controls-slot"></div>
+    </footer>
   </div>
 
   <!-- ==================== Dialoge ==================== -->
@@ -313,6 +343,7 @@
     </div>
   </dialog>
 
+  <div id="ptr-indicator" class="ptr-indicator" aria-hidden="true"></div>
   <div id="toast" class="toast hidden" role="status" aria-live="polite"></div>
 </body>
 </html>

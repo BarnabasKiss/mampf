@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
-  buildWhatsAppText, calculatePackages, groupShoppingItems, ingredientsPreview, planToShoppingItems,
+  buildWhatsAppText, calculatePackages, filterAndSortMeals, groupShoppingItems, ingredientsPreview, planToShoppingItems,
   sameList, sortShoppingItems,
 } from './domain.js';
 
@@ -57,4 +57,18 @@ test('sameList vergleicht nur die angegebenen Felder', () => {
   assert.ok(sameList([{ id: 1, x: 1 }], [{ id: 1, x: 2 }], ['id']));
   assert.ok(!sameList([{ id: 1 }], [{ id: 2 }], ['id']));
   assert.ok(!sameList([{ id: 1 }], [], ['id']));
+});
+
+test('filterAndSortMeals filtert und sortiert', () => {
+  const meals = [
+    { name: 'Zucchini', difficulty: 2, updated_at: '2026-01-01 10:00:00' },
+    { name: 'Äpfel', difficulty: 1, updated_at: '2026-03-01 10:00:00' },
+    { name: 'Brot', difficulty: 3, updated_at: '2026-02-01 10:00:00' },
+  ];
+  const names = (opts) => filterAndSortMeals(meals, opts).map((m) => m.name);
+  assert.deepEqual(names({ sort: 'name' }), ['Äpfel', 'Brot', 'Zucchini']);
+  assert.deepEqual(names({ sort: 'recent' }), ['Äpfel', 'Brot', 'Zucchini']);
+  assert.deepEqual(names({ sort: 'difficulty' }), ['Äpfel', 'Zucchini', 'Brot']);
+  assert.deepEqual(names({ difficulty: 2 }), ['Zucchini']);
+  assert.equal(meals.length, 3); // Eingabe bleibt unverändert
 });

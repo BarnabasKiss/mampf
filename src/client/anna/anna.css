@@ -1,0 +1,1249 @@
+/* ================================================================
+   Anna-Theme – verspielte Optik mit Jahreszeiten
+   Wird nur geladen, wenn der „Anna-Modus“ in der Fußzeile an ist (siehe anna.js).
+   Alles ist unter html[data-anna] gekapselt; beim Ausschalten wird die Datei entfernt.
+
+   Aufbau: Schriften → Paletten → Basis → Layout → Komponenten →
+           Dialoge → Effekte → Maskottchen → Mobil → Bewegung reduziert
+   ================================================================ */
+
+/* === Schriften (lokal, SIL Open Font License: Fredoka, Caveat) === */
+@font-face {
+  font-family: 'Fredoka';
+  src: url('fonts/Fredoka.woff2') format('woff2');
+  font-weight: 300 700;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Caveat';
+  src: url('fonts/Caveat.woff2') format('woff2');
+  font-weight: 400 700;
+  font-display: swap;
+}
+
+/* === Paletten pro Jahreszeit / Anlass ===
+   --anna-a: Hauptfarbe (weißer Text darauf ≥ 4.5:1) · --anna-b: Zweitfarbe
+   --anna-g1..3: Pastellflächen im Hintergrund · --anna-pattern: Muster */
+html[data-anna-key='spring']    { --anna-a: #c2477f; --anna-a-hover: #a53a6a; --anna-b: #2a7f52; --anna-g1: #ffd3e4; --anna-g2: #d7f1df; --anna-g3: #fff0bd; --anna-pattern: radial-gradient(circle, color-mix(in srgb, var(--anna-a) 16%, transparent) 2.5px, transparent 3px); --anna-pattern-size: 30px 30px; }
+html[data-anna-key='summer']    { --anna-a: #c2410c; --anna-a-hover: #9a3412; --anna-b: #0b7fa8; --anna-g1: #ffe9a8; --anna-g2: #ffd2bd; --anna-g3: #c9ebfa; --anna-pattern: repeating-linear-gradient(45deg, color-mix(in srgb, var(--anna-a) 8%, transparent) 0 10px, transparent 10px 24px); --anna-pattern-size: auto; }
+html[data-anna-key='autumn']    { --anna-a: #b45309; --anna-a-hover: #92400e; --anna-b: #5e7d2a; --anna-g1: #ffdfae; --anna-g2: #f9cdb0; --anna-g3: #efe0a0; --anna-pattern: linear-gradient(color-mix(in srgb, var(--anna-a) 8%, transparent) 50%, transparent 50%), linear-gradient(90deg, color-mix(in srgb, var(--anna-a) 8%, transparent) 50%, transparent 50%); --anna-pattern-size: 36px 36px; }
+html[data-anna-key='winter']    { --anna-a: #3b6fb6; --anna-a-hover: #2f5a96; --anna-b: #c0392b; --anna-g1: #cfe2ff; --anna-g2: #eef2f8; --anna-g3: #dcd9ff; --anna-pattern: radial-gradient(circle, color-mix(in srgb, #fff 85%, transparent) 3px, transparent 3.5px); --anna-pattern-size: 46px 46px; }
+html[data-anna-key='valentine'] { --anna-a: #c2255c; --anna-a-hover: #a01c4b; --anna-b: #7c3aed; --anna-g1: #ffc7da; --anna-g2: #ffe2ec; --anna-g3: #ffbfd3; --anna-pattern: radial-gradient(circle, color-mix(in srgb, var(--anna-a) 14%, transparent) 3px, transparent 3.5px); --anna-pattern-size: 26px 26px; }
+html[data-anna-key='easter']    { --anna-a: #7c5cc4; --anna-a-hover: #6445ab; --anna-b: #2a7f52; --anna-g1: #fff1a6; --anna-g2: #ddd2ff; --anna-g3: #cdf2da; --anna-pattern: radial-gradient(circle, color-mix(in srgb, var(--anna-a) 14%, transparent) 4px, transparent 4.5px); --anna-pattern-size: 40px 40px; }
+html[data-anna-key='halloween'] { --anna-a: #d9480f; --anna-a-hover: #b83a0a; --anna-b: #7c3aed; --anna-g1: #5a2a8f; --anna-g2: #8a3b0f; --anna-g3: #1f3a2a; --anna-ink: #140a22; --anna-ink-2: #221233; --anna-pattern: radial-gradient(circle, color-mix(in srgb, var(--anna-a) 18%, transparent) 2px, transparent 2.5px); --anna-pattern-size: 34px 34px; }
+html[data-anna-key='christmas'] { --anna-a: #b3202f; --anna-a-hover: #921824; --anna-b: #1f7a4d; --anna-g1: #ffd3d3; --anna-g2: #cfeedd; --anna-g3: #fff0b8; --anna-pattern: radial-gradient(circle, color-mix(in srgb, #fff 90%, transparent) 3px, transparent 3.5px); --anna-pattern-size: 44px 44px; }
+html[data-anna-key='newyear']   { --anna-a: #6741d9; --anna-a-hover: #5232b8; --anna-b: #946200; --anna-g1: #dcd0ff; --anna-g2: #ffeaa6; --anna-g3: #c9e6ff; --anna-pattern: radial-gradient(circle, color-mix(in srgb, var(--anna-b) 18%, transparent) 2px, transparent 2.5px); --anna-pattern-size: 28px 28px; }
+html[data-anna-key='birthday']  { --anna-a: #d6336c; --anna-a-hover: #b02a5b; --anna-b: #1864ab; --anna-g1: #ffd1e8; --anna-g2: #fff0a6; --anna-g3: #c3f0fb; --anna-pattern: radial-gradient(circle, color-mix(in srgb, var(--anna-a) 14%, transparent) 3px, transparent 3.5px); --anna-pattern-size: 32px 32px; }
+
+/* === Tokens: Hellmodus (überschreibt die Kern-Tokens) ===
+   Die Selektoren sind absichtlich spezifischer als die Dunkel-Blöcke des Kerns. */
+html[data-anna][data-anna-key] {
+  --anna-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+  --anna-glow: 75%;
+  --anna-ink: #121014;
+  --anna-ink-2: #1c1a20;
+
+  --color-primary: var(--anna-a);
+  --color-primary-hover: var(--anna-a-hover);
+  --color-on-primary: #fff;
+  --color-success: var(--anna-b);
+  --color-success-hover: color-mix(in srgb, var(--anna-b) 80%, #000);
+  --color-secondary: color-mix(in srgb, var(--anna-a) 30%, #6b6b6b);
+
+  --color-bg: color-mix(in srgb, var(--anna-a) 6%, #fffdfb);
+  --color-surface: color-mix(in srgb, var(--anna-a) 2%, #fff);
+  --color-surface-2: color-mix(in srgb, var(--anna-a) 10%, #fff);
+  --color-text: color-mix(in srgb, var(--anna-a) 20%, #1d1a1a);
+  --color-text-light: color-mix(in srgb, var(--anna-a) 25%, #666);
+  --color-border: color-mix(in srgb, var(--anna-a) 22%, #fff);
+  --color-focus: color-mix(in srgb, var(--anna-a) 35%, transparent);
+
+  --radius: 20px;
+  --radius-sm: 14px;
+  --shadow: 0 2px 0 color-mix(in srgb, var(--anna-a) 16%, transparent), 0 8px 18px color-mix(in srgb, var(--anna-a) 12%, transparent);
+  --shadow-lg: 0 14px 40px color-mix(in srgb, var(--anna-a) 28%, transparent);
+  --nav-height: 78px;
+}
+
+/* === Tokens: Dunkelmodus (Systemeinstellung, Umschalter oder Halloween) === */
+@media (prefers-color-scheme: dark) {
+  html[data-anna][data-anna-key]:not([data-theme='light']) {
+    --anna-glow: 17%;
+    --color-primary: color-mix(in srgb, var(--anna-a) 55%, #fff);
+    --color-primary-hover: color-mix(in srgb, var(--anna-a) 40%, #fff);
+    --color-on-primary: #1a1216;
+    --color-success: color-mix(in srgb, var(--anna-b) 55%, #fff);
+    --color-success-hover: color-mix(in srgb, var(--anna-b) 40%, #fff);
+    --color-secondary: color-mix(in srgb, var(--anna-a) 30%, #9a9096);
+    --color-bg: color-mix(in srgb, var(--anna-a) 12%, var(--anna-ink));
+    --color-surface: color-mix(in srgb, var(--anna-a) 12%, var(--anna-ink-2));
+    --color-surface-2: color-mix(in srgb, var(--anna-a) 22%, var(--anna-ink-2));
+    --color-text: #f7eff1;
+    --color-text-light: #cbbfc4;
+    --color-border: color-mix(in srgb, var(--anna-a) 32%, var(--anna-ink-2));
+    --color-focus: color-mix(in srgb, var(--anna-a) 55%, transparent);
+    --color-danger: #ff8a82;
+    --color-danger-bg: #3d1d1f;
+    --shadow: 0 2px 0 rgba(0, 0, 0, 0.35), 0 8px 18px rgba(0, 0, 0, 0.3);
+    --shadow-lg: 0 14px 40px rgba(0, 0, 0, 0.55);
+  }
+}
+
+html[data-anna][data-anna-key][data-theme='dark'],
+html[data-anna][data-anna-key='halloween'] {
+  --anna-glow: 17%;
+  --color-primary: color-mix(in srgb, var(--anna-a) 55%, #fff);
+  --color-primary-hover: color-mix(in srgb, var(--anna-a) 40%, #fff);
+  --color-on-primary: #1a1216;
+  --color-success: color-mix(in srgb, var(--anna-b) 55%, #fff);
+  --color-success-hover: color-mix(in srgb, var(--anna-b) 40%, #fff);
+  --color-secondary: color-mix(in srgb, var(--anna-a) 30%, #9a9096);
+  --color-bg: color-mix(in srgb, var(--anna-a) 12%, var(--anna-ink));
+  --color-surface: color-mix(in srgb, var(--anna-a) 12%, var(--anna-ink-2));
+  --color-surface-2: color-mix(in srgb, var(--anna-a) 22%, var(--anna-ink-2));
+  --color-text: #f7eff1;
+  --color-text-light: #cbbfc4;
+  --color-border: color-mix(in srgb, var(--anna-a) 32%, var(--anna-ink-2));
+  --color-focus: color-mix(in srgb, var(--anna-a) 55%, transparent);
+  --color-danger: #ff8a82;
+  --color-danger-bg: #3d1d1f;
+  --shadow: 0 2px 0 rgba(0, 0, 0, 0.35), 0 8px 18px rgba(0, 0, 0, 0.3);
+  --shadow-lg: 0 14px 40px rgba(0, 0, 0, 0.55);
+}
+
+/* === Basis === */
+html[data-anna] [hidden] {
+  display: none !important;
+}
+
+html[data-anna] body,
+html[data-anna] button,
+html[data-anna] input,
+html[data-anna] select,
+html[data-anna] textarea {
+  font-family: 'Fredoka', system-ui, -apple-system, 'Segoe UI', sans-serif;
+}
+
+html[data-anna] body {
+  background:
+    radial-gradient(circle at 10% 6%, color-mix(in srgb, var(--anna-g1) var(--anna-glow), transparent) 0 18%, transparent 46%),
+    radial-gradient(circle at 92% 18%, color-mix(in srgb, var(--anna-g2) var(--anna-glow), transparent) 0 16%, transparent 44%),
+    radial-gradient(circle at 72% 96%, color-mix(in srgb, var(--anna-g3) var(--anna-glow), transparent) 0 18%, transparent 48%),
+    radial-gradient(circle at 6% 88%, color-mix(in srgb, var(--anna-g2) var(--anna-glow), transparent) 0 12%, transparent 40%),
+    var(--color-bg);
+  background-attachment: fixed;
+}
+
+html[data-anna] body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  background-image: var(--anna-pattern);
+  background-size: var(--anna-pattern-size);
+  opacity: 0.75;
+  pointer-events: none;
+}
+
+html[data-anna] ::selection {
+  background: color-mix(in srgb, var(--anna-a) 30%, transparent);
+}
+
+/* === Kopfzeile mit Wellenkante === */
+html[data-anna] .app-header {
+  padding-bottom: 14px;
+  background: var(--color-surface);
+  box-shadow: 0 3px 0 color-mix(in srgb, var(--anna-a) 22%, transparent);
+}
+
+html[data-anna] .app-header::after {
+  content: '';
+  position: absolute;
+  right: 0;
+  bottom: -11px;
+  left: 0;
+  height: 11px;
+  background: radial-gradient(circle at 11px 0, var(--color-surface) 10.5px, transparent 11px) 0 0 / 22px 11px repeat-x;
+  filter: drop-shadow(0 3px 0 color-mix(in srgb, var(--anna-a) 22%, transparent));
+  pointer-events: none;
+}
+
+html[data-anna] .brand {
+  font-family: 'Caveat', cursive;
+  font-size: 2.1rem;
+  font-weight: 700;
+  line-height: 1;
+  color: var(--color-primary);
+  cursor: default;
+}
+
+html[data-anna] .brand img {
+  animation: anna-wobble 5s ease-in-out infinite;
+  transform-origin: 50% 85%;
+}
+
+html[data-anna] .brand:hover img {
+  animation-duration: 0.9s;
+}
+
+/* === Tabs === */
+html[data-anna] .tab-btn {
+  font-weight: 500;
+  transition: background 0.2s, color 0.2s, transform 0.25s var(--anna-spring);
+}
+
+html[data-anna] .tab-btn:hover {
+  transform: translateY(-2px) rotate(-1.5deg);
+}
+
+html[data-anna] .tab-btn.active {
+  background: linear-gradient(135deg, var(--anna-a), color-mix(in srgb, var(--anna-a) 55%, var(--anna-b)));
+  color: #fff;
+  box-shadow: 0 3px 0 var(--anna-a-hover);
+}
+
+html[data-anna] .tab-btn.active .icon {
+  animation: anna-tilt 0.7s var(--anna-spring);
+}
+
+html[data-anna] .tab-content.active {
+  animation: anna-fade-up 0.45s var(--anna-spring);
+}
+
+/* === Buttons: weich, „zum Eindrücken“ === */
+html[data-anna] .btn {
+  border-radius: 999px;
+  font-weight: 500;
+  transition: transform 0.2s var(--anna-spring), box-shadow 0.2s, background 0.2s;
+}
+
+html[data-anna] .btn-primary { box-shadow: 0 4px 0 var(--color-primary-hover); }
+html[data-anna] .btn-success { box-shadow: 0 4px 0 var(--color-success-hover); }
+html[data-anna] .btn-secondary { box-shadow: 0 4px 0 var(--color-border); }
+html[data-anna] .btn-danger { box-shadow: none; }
+
+html[data-anna] .btn:hover:not(:disabled) {
+  transform: translateY(-2px) rotate(-0.8deg);
+}
+
+html[data-anna] .btn:active:not(:disabled) {
+  transform: translateY(3px);
+  box-shadow: 0 1px 0 transparent;
+}
+
+html[data-anna] .btn:disabled {
+  box-shadow: none;
+}
+
+html[data-anna] .btn-icon,
+html[data-anna] .btn-remove-row,
+html[data-anna] .stepper-btn {
+  border-radius: 50%;
+  transition: transform 0.2s var(--anna-spring), background 0.2s;
+}
+
+html[data-anna] .btn-icon:hover,
+html[data-anna] .stepper-btn:hover:not(:disabled) {
+  transform: scale(1.12) rotate(-6deg);
+}
+
+html[data-anna] .anna-slot-btn {
+  border: none;
+  background: linear-gradient(120deg, var(--anna-a), var(--anna-b), var(--anna-a));
+  background-size: 220% 100%;
+  color: #fff;
+  box-shadow: 0 4px 0 color-mix(in srgb, var(--anna-a) 65%, #000);
+  animation: anna-shimmer 4s linear infinite;
+}
+
+/* === Formulare === */
+html[data-anna] input[type='text'],
+html[data-anna] input[type='search'],
+html[data-anna] input[type='password'],
+html[data-anna] input[type='number'],
+html[data-anna] select {
+  border-width: 2px;
+  border-radius: 16px;
+}
+
+html[data-anna] .search-box input {
+  border-radius: 999px;
+}
+
+html[data-anna] fieldset {
+  border: 2px dashed color-mix(in srgb, var(--anna-a) 35%, transparent);
+  border-radius: 22px;
+}
+
+html[data-anna] legend {
+  font-family: 'Caveat', cursive;
+  font-size: 1.35rem;
+  color: var(--color-primary);
+}
+
+html[data-anna] .error-message {
+  border-radius: 16px;
+  border: 2px dashed currentColor;
+}
+
+/* === Kartenlook: Sticker mit Washi-Tape === */
+html[data-anna] .meal-card,
+html[data-anna] .plan-card {
+  position: relative;
+  border: 2px solid color-mix(in srgb, var(--anna-a) 26%, transparent);
+  border-radius: 24px;
+  box-shadow: 5px 6px 0 color-mix(in srgb, var(--anna-b) 22%, transparent);
+  transition: transform 0.3s var(--anna-spring), box-shadow 0.3s;
+}
+
+html[data-anna] .meal-card:nth-child(odd),
+html[data-anna] .plan-card:nth-child(odd) { transform: rotate(-0.6deg); }
+html[data-anna] .meal-card:nth-child(even),
+html[data-anna] .plan-card:nth-child(even) { transform: rotate(0.6deg); }
+
+html[data-anna] .meal-card:hover,
+html[data-anna] .plan-card:hover {
+  transform: rotate(0) translateY(-4px);
+  box-shadow: 7px 10px 0 color-mix(in srgb, var(--anna-b) 28%, transparent);
+}
+
+html[data-anna] .meal-card::before,
+html[data-anna] .plan-card::before,
+html[data-anna] .shopping-category::after {
+  content: '';
+  position: absolute;
+  top: -11px;
+  left: 50%;
+  width: 78px;
+  height: 22px;
+  background: color-mix(in srgb, var(--anna-b) 38%, transparent);
+  border-radius: 3px;
+  transform: translateX(-50%) rotate(-3deg);
+  clip-path: polygon(0 0, 4% 50%, 0 100%, 100% 100%, 96% 50%, 100% 0);
+  pointer-events: none;
+}
+
+html[data-anna] .meal-card:nth-child(even)::before,
+html[data-anna] .plan-card:nth-child(even)::before {
+  background: color-mix(in srgb, var(--anna-a) 34%, transparent);
+  transform: translateX(-50%) rotate(2.5deg);
+}
+
+html[data-anna] .meal-card h3,
+html[data-anna] .plan-card h3 {
+  font-size: 1.15rem;
+  font-weight: 600;
+}
+
+html[data-anna] .plan-card-ingredients li::marker {
+  content: var(--anna-check) ' ';
+  font-size: 0.8em;
+}
+
+html[data-anna] .portions-value {
+  font-family: 'Caveat', cursive;
+  font-size: 1.8rem;
+  color: var(--color-primary);
+}
+
+/* Schwierigkeit mit Gefühl statt Zahl */
+html[data-anna] .difficulty-badge {
+  font-size: 0;
+  padding: 3px 12px;
+}
+
+html[data-anna] .difficulty-badge .dots {
+  font-size: 0.68rem;
+}
+
+html[data-anna] .difficulty-badge::after {
+  margin-left: 5px;
+  font-size: 0.78rem;
+}
+
+html[data-anna] .difficulty-badge.easy::after { content: 'Schnell & leicht'; }
+html[data-anna] .difficulty-badge.medium::after { content: 'Wohlfühl-Klassiker'; }
+html[data-anna] .difficulty-badge.hard::after { content: 'Heute wird gezaubert'; }
+
+/* === Einkaufsliste als Notizblock === */
+html[data-anna] .shopping-category {
+  position: relative;
+  border: 2px solid color-mix(in srgb, var(--anna-a) 24%, transparent);
+  border-radius: 24px;
+  margin-left: 10px;
+}
+
+html[data-anna] .shopping-category::before {
+  content: '';
+  position: absolute;
+  top: 22px;
+  bottom: 22px;
+  left: -9px;
+  width: 14px;
+  background: radial-gradient(circle, var(--color-bg) 4.5px, color-mix(in srgb, var(--anna-a) 45%, #888) 5px 6px, transparent 6.5px) 0 0 / 14px 26px repeat-y;
+  pointer-events: none;
+}
+
+html[data-anna] .shopping-category::after {
+  top: -10px;
+  left: auto;
+  right: 28px;
+  transform: rotate(4deg);
+}
+
+html[data-anna] .shopping-category-header {
+  border-radius: 22px 22px 0 0;
+}
+
+html[data-anna] .cat-toggle {
+  font-size: 1.05rem;
+  font-weight: 600;
+}
+
+html[data-anna] .cat-name::before {
+  content: var(--anna-check);
+  margin-right: 0.4em;
+}
+
+html[data-anna] .cat-count {
+  background: color-mix(in srgb, var(--anna-a) 16%, transparent);
+  color: var(--color-primary);
+}
+
+html[data-anna] .shopping-category-body {
+  border-top: 2px dashed color-mix(in srgb, var(--anna-a) 28%, transparent);
+}
+
+html[data-anna] .shopping-swipe {
+  border-bottom-style: dashed;
+}
+
+html[data-anna] .shopping-input {
+  font-size: 1.02rem;
+  border-radius: 14px;
+}
+
+/* Herzförmige Haken: statt ✓ blüht das Symbol der Jahreszeit auf */
+html[data-anna] .shopping-checkbox {
+  appearance: none;
+  -webkit-appearance: none;
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  border: 2.5px solid var(--color-primary);
+  border-radius: 50%;
+  background: var(--color-surface);
+  cursor: pointer;
+  transition: transform 0.25s var(--anna-spring), background 0.2s;
+}
+
+html[data-anna] .shopping-checkbox:hover {
+  transform: scale(1.15) rotate(-8deg);
+}
+
+html[data-anna] .shopping-checkbox::after {
+  content: var(--anna-check);
+  font-size: 16px;
+  line-height: 1;
+  transform: scale(0);
+  transition: transform 0.35s var(--anna-spring);
+}
+
+html[data-anna] .shopping-checkbox:checked {
+  background: color-mix(in srgb, var(--color-primary) 16%, var(--color-surface));
+  animation: anna-check-pop 0.5s var(--anna-spring);
+}
+
+html[data-anna] .shopping-checkbox:checked::after {
+  transform: scale(1);
+}
+
+html[data-anna] .shopping-item.checked .shopping-input {
+  text-decoration-style: wavy;
+  text-decoration-color: var(--anna-b);
+}
+
+html[data-anna] .swipe-hint {
+  font-size: 1.5rem;
+}
+
+/* Synchronisierung als schlagendes Herz */
+html[data-anna] .sync-dot {
+  display: grid;
+  place-items: center;
+  width: 20px;
+  height: 20px;
+  border-radius: 0;
+  background: none;
+  animation: anna-heartbeat 2.4s ease-in-out infinite;
+}
+
+html[data-anna] .sync-dot::before {
+  content: '♥';
+  font-size: 20px;
+  line-height: 1;
+  color: var(--color-success);
+}
+
+html[data-anna] .sync-indicator.syncing .sync-dot::before { color: var(--anna-a); }
+html[data-anna] .sync-indicator.syncing .sync-dot { animation-duration: 0.6s; }
+html[data-anna] .sync-indicator.error .sync-dot::before { color: var(--color-danger); }
+
+/* Leere Zustände */
+html[data-anna] .empty-state .empty-icon {
+  display: none;
+}
+
+html[data-anna] .empty-state::before {
+  content: var(--anna-empty);
+  display: block;
+  margin-bottom: 8px;
+  font-size: 4.2rem;
+  line-height: 1.1;
+  animation: anna-bob 3s ease-in-out infinite;
+}
+
+html[data-anna] .empty-state p {
+  font-family: 'Caveat', cursive;
+  font-size: 1.6rem;
+  line-height: 1.2;
+}
+
+/* === Bauchgefühl-Automat === */
+html[data-anna] .slot-intro {
+  margin-bottom: 14px;
+  font-family: 'Caveat', cursive;
+  font-size: 1.5rem;
+  line-height: 1.15;
+  color: var(--color-text-light);
+}
+
+html[data-anna] .slot-moods {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+html[data-anna] .slot-mood {
+  min-height: 40px;
+  padding: 6px 14px;
+  border: 2px solid var(--color-border);
+  border-radius: 999px;
+  background: var(--color-surface-2);
+  transition: transform 0.2s var(--anna-spring), background 0.2s;
+}
+
+html[data-anna] .slot-mood:hover {
+  transform: translateY(-2px);
+}
+
+html[data-anna] .slot-mood[aria-pressed='true'] {
+  border-color: var(--color-primary);
+  background: var(--color-primary);
+  color: var(--color-on-primary);
+}
+
+html[data-anna] .slot-reels {
+  display: grid;
+  gap: 10px;
+  margin: 18px 0 8px;
+}
+
+html[data-anna] .slot-reel {
+  display: grid;
+  place-items: center;
+  height: 66px;
+  overflow: hidden;
+  border: 3px solid var(--color-primary);
+  border-radius: 20px;
+  background: var(--color-surface);
+  box-shadow: inset 0 6px 10px rgba(0, 0, 0, 0.08);
+}
+
+html[data-anna] .slot-text {
+  padding: 0 14px;
+  font-size: 1.3rem;
+  font-weight: 600;
+  text-align: center;
+  overflow-wrap: anywhere;
+}
+
+html[data-anna] .slot-reel.rolling .slot-text {
+  animation: anna-reel 0.11s linear infinite;
+  filter: blur(0.6px);
+}
+
+html[data-anna] .slot-reel.landed {
+  border-color: var(--anna-b);
+  background: color-mix(in srgb, var(--anna-b) 14%, var(--color-surface));
+  animation: anna-landed 0.6s var(--anna-spring);
+}
+
+html[data-anna] .slot-message {
+  min-height: 1.7em;
+  font-family: 'Caveat', cursive;
+  font-size: 1.6rem;
+  text-align: center;
+  color: var(--color-primary);
+}
+
+/* === Dialoge === */
+html[data-anna] dialog.modal {
+  border: 3px dashed color-mix(in srgb, var(--anna-a) 40%, transparent);
+  border-radius: 30px;
+}
+
+html[data-anna] dialog.modal[open] {
+  animation: anna-dialog-in 0.5s var(--anna-spring);
+}
+
+html[data-anna] dialog.modal::backdrop {
+  background: color-mix(in srgb, var(--anna-a) 24%, rgba(20, 10, 20, 0.55));
+  backdrop-filter: blur(3px);
+}
+
+html[data-anna] .modal-content h2 {
+  font-family: 'Caveat', cursive;
+  font-size: 2.1rem;
+  line-height: 1.1;
+  color: var(--color-primary);
+}
+
+html[data-anna] .modal-content h2::after {
+  content: ' ' var(--anna-check);
+}
+
+html[data-anna] .available-meal-item,
+html[data-anna] .template-item {
+  border-width: 2px;
+  border-radius: 18px;
+  transition: transform 0.2s var(--anna-spring), border-color 0.2s;
+}
+
+html[data-anna] .available-meal-item:hover {
+  transform: translateX(4px);
+}
+
+/* === Toast === */
+html[data-anna] .toast {
+  border-radius: 999px;
+  padding: 12px 22px;
+  font-weight: 500;
+  background: var(--anna-a);
+  animation: anna-toast-in 0.45s var(--anna-spring);
+}
+
+html[data-anna] .toast.success { background: var(--anna-b); }
+html[data-anna] .toast.error { background: #b02a26; }
+
+html[data-anna] .toast::before {
+  content: var(--anna-check);
+  font-size: 1.2em;
+}
+
+/* === Login === */
+html[data-anna] .login-card {
+  position: relative;
+  border: 3px dashed color-mix(in srgb, var(--anna-a) 40%, transparent);
+  border-radius: 34px;
+  background: var(--color-surface);
+}
+
+html[data-anna] .login-card::before,
+html[data-anna] .login-card::after {
+  position: absolute;
+  font-size: 2.6rem;
+  line-height: 1;
+  animation: anna-bob 3.4s ease-in-out infinite;
+  pointer-events: none;
+}
+
+html[data-anna] .login-card::before {
+  content: var(--anna-empty);
+  --anna-tilt: -14deg;
+  top: -22px;
+  left: -14px;
+  transform: rotate(-14deg);
+}
+
+html[data-anna] .login-card::after {
+  content: var(--anna-check);
+  --anna-tilt: 12deg;
+  top: 18px;
+  right: -16px;
+  transform: rotate(12deg);
+  animation-delay: -1.2s;
+}
+
+html[data-anna] .login-logo {
+  animation: anna-wobble 4s ease-in-out infinite;
+}
+
+html[data-anna] .login-card h1 {
+  font-family: 'Caveat', cursive;
+  font-size: 3.2rem;
+  line-height: 1;
+  color: var(--color-primary);
+}
+
+html[data-anna] .subtitle {
+  font-family: 'Caveat', cursive;
+  font-size: 1.5rem;
+}
+
+/* === Fußzeile === */
+html[data-anna] .footer-note {
+  font-family: 'Caveat', cursive;
+  font-size: 1.35rem;
+  cursor: default;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+html[data-anna] .anna-switch-label {
+  font-weight: 600;
+  color: var(--color-primary);
+}
+
+.anna-controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px 18px;
+  padding: 12px 16px;
+  border: 2px dashed color-mix(in srgb, var(--anna-a) 35%, transparent);
+  border-radius: 20px;
+  background: color-mix(in srgb, var(--anna-a) 6%, var(--color-surface));
+  font-size: 0.9rem;
+}
+
+.anna-controls label {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.anna-controls select {
+  width: auto;
+  min-height: 36px;
+  padding: 4px 10px;
+}
+
+.anna-controls input[type='checkbox'] {
+  width: 18px;
+  height: 18px;
+  accent-color: var(--color-primary);
+}
+
+.anna-reset {
+  padding: 4px 12px;
+  border: 2px solid var(--color-border);
+  border-radius: 999px;
+  background: var(--color-surface-2);
+  font-size: 0.85rem;
+}
+
+/* === Hintergrund-Partikel und Effekte === */
+.anna-particles,
+.anna-fx {
+  position: fixed;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.anna-particles { z-index: 30; }
+.anna-fx { z-index: 250; }
+
+.anna-particle {
+  position: absolute;
+  top: 0;
+  left: var(--x);
+  font-size: var(--size);
+  opacity: 0.8;
+  color: #fff;
+  text-shadow: 0 0 5px rgba(110, 150, 220, 0.9);
+  will-change: transform;
+  animation-duration: var(--dur);
+  animation-delay: var(--delay);
+  animation-iteration-count: infinite;
+  animation-timing-function: linear;
+}
+
+.anna-particle i {
+  display: block;
+  font-style: normal;
+  animation: anna-sway var(--sway-dur) ease-in-out infinite alternate;
+}
+
+.anna-fall { animation-name: anna-fall; }
+.anna-rise { top: auto; bottom: 0; animation-name: anna-rise; }
+.anna-drift { top: var(--y); left: 0; animation-name: anna-drift; }
+.anna-drift i { animation-name: anna-hover; }
+
+.anna-burst {
+  position: absolute;
+  font-size: var(--size);
+  line-height: 1;
+  animation: anna-burst 1.05s cubic-bezier(0.2, 0.8, 0.3, 1) forwards;
+}
+
+.anna-spark {
+  position: absolute;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: hsl(var(--hue) 90% 62%);
+  box-shadow: 0 0 6px hsl(var(--hue) 100% 70%);
+  animation: anna-spark 0.95s ease-out forwards;
+}
+
+.anna-rain {
+  position: absolute;
+  top: -8vh;
+  font-size: var(--size);
+  line-height: 1;
+  animation: anna-rain var(--dur) linear forwards;
+}
+
+.anna-trail {
+  position: absolute;
+  font-size: var(--size);
+  line-height: 1;
+  animation: anna-trail 0.8s ease-out forwards;
+}
+
+html.anna-paused .anna-particle,
+html.anna-paused .anna-particle i,
+html.anna-paused .anna-mascot * {
+  animation-play-state: paused !important;
+}
+
+/* Party-Modus (7× auf Mampfi tippen) */
+html.anna-party .app-header {
+  animation: anna-rainbow 1.2s linear infinite;
+}
+
+html.anna-party .brand {
+  animation: anna-rainbow-text 1.2s linear infinite;
+}
+
+/* === Maskottchen „Mampfi“ === */
+.anna-mascot {
+  --ex: 0px;
+  --ey: 0px;
+  position: fixed;
+  right: 12px;
+  bottom: calc(var(--nav-height, 78px) + 18px + var(--safe-bottom, 0px));
+  z-index: 70;
+  width: 84px;
+  color: var(--color-text-light);
+  cursor: grab;
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
+}
+
+.anna-mascot:focus-visible {
+  outline: 3px solid var(--color-focus);
+  outline-offset: 4px;
+  border-radius: 24px;
+}
+
+.anna-mascot.dragging {
+  cursor: grabbing;
+}
+
+.anna-mascot.dragging .m-svg {
+  transform: scale(1.1) rotate(-4deg);
+  animation: none;
+}
+
+@media (min-width: 721px) {
+  .anna-mascot {
+    right: 24px;
+    bottom: 24px;
+    width: 100px;
+  }
+}
+
+.m-svg {
+  display: block;
+  width: 100%;
+  height: auto;
+  overflow: visible;
+  filter: drop-shadow(0 6px 5px rgba(0, 0, 0, 0.2));
+  transform-origin: 50% 100%;
+  animation: anna-idle 3.6s ease-in-out infinite;
+}
+
+.m-bowl,
+.m-foot {
+  fill: #fff8ee;
+  stroke: var(--anna-a, #c2477f);
+  stroke-width: 3.5;
+  stroke-linejoin: round;
+}
+
+.m-rim { stroke: #ffa94d; }
+.m-band { stroke: var(--anna-a, #c2477f); }
+
+.m-steam path {
+  stroke: color-mix(in srgb, var(--anna-a, #c2477f) 45%, #fff);
+  opacity: 0.8;
+  transform-box: fill-box;
+  animation: anna-steam 2.6s ease-in-out infinite;
+}
+
+.m-steam path:nth-child(2) { animation-delay: -0.9s; }
+.m-steam path:nth-child(3) { animation-delay: -1.7s; }
+
+.m-eyes {
+  transform: translate(var(--ex), var(--ey));
+  transform-box: fill-box;
+  transform-origin: center;
+  transition: transform 0.08s linear;
+}
+
+.anna-mascot.blink .m-eyes {
+  transform: translate(var(--ex), var(--ey)) scaleY(0.12);
+}
+
+.m-mouth,
+.m-lids,
+.m-zzz,
+.m-outfit,
+.m-bunny-ears {
+  display: none;
+}
+
+.m-smile { display: inline; }
+
+[data-mood='happy'] .m-smile,
+[data-mood='sad'] .m-smile,
+[data-mood='oh'] .m-smile { display: none; }
+[data-mood='happy'] .m-happy { display: inline; }
+[data-mood='sad'] .m-sad { display: inline; }
+[data-mood='oh'] .m-oh { display: inline; }
+
+[data-mood='sleep'] .m-eyes { display: none; }
+[data-mood='sleep'] .m-lids { display: inline; }
+[data-mood='sleep'] .m-zzz { display: inline; animation: anna-zzz 2.4s ease-in-out infinite; }
+[data-mood='sleep'] .m-svg { animation-duration: 6s; }
+[data-mood='happy'] .m-svg { animation: anna-hop 0.5s ease-out 2; }
+[data-mood='sad'] .m-svg { animation: anna-droop 1.2s ease-in-out; }
+[data-mood='oh'] .m-svg { animation: anna-surprise 0.5s var(--anna-spring, ease-out); }
+
+/* Outfits */
+[data-outfit='flower'] .m-flower,
+[data-outfit='shades'] .m-shades,
+[data-outfit='leaf'] .m-leaf,
+[data-outfit='beanie'] .m-beanie,
+[data-outfit='santa'] .m-santa,
+[data-outfit='witch'] .m-witch,
+[data-outfit='heart'] .m-heart,
+[data-outfit='party'] .m-party { display: inline; }
+[data-outfit='bunny'] .m-bunny-ears { display: inline; }
+
+[data-outfit='beanie'] .m-steam,
+[data-outfit='santa'] .m-steam,
+[data-outfit='witch'] .m-steam,
+[data-outfit='party'] .m-steam,
+[data-outfit='bunny'] .m-steam,
+[data-outfit='heart'] .m-steam { display: none; }
+
+.m-beat {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: anna-heartbeat 1.2s ease-in-out infinite;
+}
+
+.anna-mascot.chomp .m-happy {
+  transform-box: fill-box;
+  transform-origin: top;
+  animation: anna-chomp 0.22s ease-in-out infinite alternate;
+}
+
+.anna-mascot.dance .m-svg { animation: anna-dance 0.5s ease-in-out infinite alternate; }
+.anna-mascot.dizzy .m-svg { animation: anna-dizzy 1.5s ease-in-out; }
+
+/* Sprechblase */
+.anna-bubble {
+  position: absolute;
+  right: 0;
+  bottom: calc(100% + 4px);
+  width: max-content;
+  max-width: min(230px, calc(100vw - 32px));
+  padding: 9px 14px 8px;
+  border: 2.5px solid var(--color-primary);
+  border-radius: 20px 20px 4px 20px;
+  background: var(--color-surface);
+  color: var(--color-text);
+  font-family: 'Caveat', cursive;
+  font-size: 1.3rem;
+  line-height: 1.12;
+  box-shadow: var(--shadow);
+  cursor: default;
+}
+
+.bubble-left .anna-bubble {
+  right: auto;
+  left: 0;
+  border-radius: 20px 20px 20px 4px;
+}
+
+.bubble-below .anna-bubble {
+  top: calc(100% + 4px);
+  bottom: auto;
+}
+
+.anna-bubble.pop {
+  animation: anna-bubble-pop 0.4s var(--anna-spring, ease-out);
+  transform-origin: bottom right;
+}
+
+.bubble-left .anna-bubble.pop { transform-origin: bottom left; }
+
+/* === Keyframes === */
+@keyframes anna-fall {
+  from { transform: translate3d(0, -12vh, 0) rotate(0deg); }
+  to { transform: translate3d(var(--drift), 112vh, 0) rotate(var(--spin)); }
+}
+
+@keyframes anna-rise {
+  0% { transform: translate3d(0, 12vh, 0) rotate(0deg); opacity: 0; }
+  10%, 85% { opacity: 0.9; }
+  100% { transform: translate3d(var(--drift), -112vh, 0) rotate(calc(var(--spin) * 0.3)); opacity: 0; }
+}
+
+@keyframes anna-drift {
+  0% { transform: translate3d(-12vw, 0, 0); opacity: 0; }
+  8%, 92% { opacity: 0.95; }
+  100% { transform: translate3d(112vw, 0, 0); opacity: 0; }
+}
+
+@keyframes anna-sway {
+  from { transform: translateX(calc(var(--sway) * -1)); }
+  to { transform: translateX(var(--sway)); }
+}
+
+@keyframes anna-hover {
+  from { transform: translateY(calc(var(--sway) * -1)) rotate(-8deg); }
+  to { transform: translateY(var(--sway)) rotate(8deg); }
+}
+
+@keyframes anna-burst {
+  0% { transform: translate(-50%, -50%) scale(0.3) rotate(0deg); opacity: 1; }
+  55% { transform: translate(calc(-50% + var(--dx)), calc(-50% + var(--dy))) scale(1.1) rotate(var(--rot)); opacity: 1; }
+  100% { transform: translate(calc(-50% + var(--dx) * 1.15), calc(-50% + var(--dy) + 70px)) scale(0.8) rotate(calc(var(--rot) * 1.4)); opacity: 0; }
+}
+
+@keyframes anna-spark {
+  from { transform: translate(-50%, -50%) scale(1); opacity: 1; }
+  to { transform: translate(calc(-50% + var(--dx)), calc(-50% + var(--dy) + 30px)) scale(0.2); opacity: 0; }
+}
+
+@keyframes anna-rain {
+  to { transform: translate3d(var(--drift), 112vh, 0) rotate(var(--spin)); }
+}
+
+@keyframes anna-trail {
+  from { transform: translate(-50%, -50%) scale(1); opacity: 1; }
+  to { transform: translate(calc(-50% + var(--dx)), calc(-50% + 28px)) scale(0.3); opacity: 0; }
+}
+
+@keyframes anna-wobble {
+  0%, 100% { transform: rotate(-4deg); }
+  50% { transform: rotate(5deg) translateY(-2px); }
+}
+
+@keyframes anna-bob {
+  0%, 100% { transform: translateY(0) rotate(var(--anna-tilt, 0deg)); }
+  50% { transform: translateY(-9px) rotate(calc(var(--anna-tilt, 0deg) + 4deg)); }
+}
+
+@keyframes anna-tilt {
+  0% { transform: scale(0.6) rotate(-30deg); }
+  60% { transform: scale(1.3) rotate(10deg); }
+  100% { transform: scale(1) rotate(0deg); }
+}
+
+@keyframes anna-fade-up {
+  from { opacity: 0; transform: translateY(14px); }
+  to { opacity: 1; transform: none; }
+}
+
+@keyframes anna-check-pop {
+  0% { transform: scale(1); }
+  40% { transform: scale(1.35) rotate(-10deg); }
+  100% { transform: scale(1); }
+}
+
+@keyframes anna-heartbeat {
+  0%, 40%, 100% { transform: scale(1); }
+  15% { transform: scale(1.25); }
+  30% { transform: scale(1.05); }
+}
+
+@keyframes anna-shimmer {
+  to { background-position: -220% 0; }
+}
+
+@keyframes anna-reel {
+  from { transform: translateY(-34%); opacity: 0.4; }
+  to { transform: translateY(34%); opacity: 1; }
+}
+
+@keyframes anna-landed {
+  0% { transform: scale(1); }
+  35% { transform: scale(1.07) rotate(-1.5deg); }
+  100% { transform: scale(1); }
+}
+
+@keyframes anna-dialog-in {
+  0% { opacity: 0; transform: scale(0.8) rotate(-3deg) translateY(24px); }
+  100% { opacity: 1; transform: none; }
+}
+
+@keyframes anna-sheet-in {
+  from { transform: translateY(100%); }
+  to { transform: none; }
+}
+
+@keyframes anna-toast-in {
+  from { opacity: 0; transform: translate(-50%, 24px) scale(0.8); }
+  to { opacity: 1; transform: translate(-50%, 0) scale(1); }
+}
+
+@keyframes anna-idle {
+  0%, 100% { transform: scale(1, 1); }
+  50% { transform: scale(1.035, 0.965); }
+}
+
+@keyframes anna-steam {
+  0%, 100% { transform: translateY(0); opacity: 0.45; }
+  50% { transform: translateY(-6px); opacity: 0.95; }
+}
+
+@keyframes anna-hop {
+  0%, 100% { transform: translateY(0) scale(1, 1); }
+  45% { transform: translateY(-14px) scale(0.96, 1.05); }
+  75% { transform: translateY(0) scale(1.06, 0.94); }
+}
+
+@keyframes anna-droop {
+  0%, 100% { transform: rotate(0); }
+  40% { transform: rotate(-6deg) scale(1, 0.95); }
+}
+
+@keyframes anna-surprise {
+  from { transform: scale(0.85); }
+  to { transform: scale(1); }
+}
+
+@keyframes anna-zzz {
+  0%, 100% { opacity: 0.3; transform: translateY(2px); }
+  50% { opacity: 1; transform: translateY(-4px); }
+}
+
+@keyframes anna-chomp {
+  from { transform: scaleY(0.35); }
+  to { transform: scaleY(1.15); }
+}
+
+@keyframes anna-dance {
+  from { transform: rotate(-9deg) translateY(0); }
+  to { transform: rotate(9deg) translateY(-12px); }
+}
+
+@keyframes anna-dizzy {
+  0% { transform: rotate(0); }
+  100% { transform: rotate(720deg); }
+}
+
+@keyframes anna-bubble-pop {
+  from { opacity: 0; transform: scale(0.4) translateY(10px); }
+  to { opacity: 1; transform: none; }
+}
+
+@keyframes anna-rainbow {
+  0% { box-shadow: 0 4px 0 hsl(0 90% 65%); }
+  25% { box-shadow: 0 4px 0 hsl(90 90% 55%); }
+  50% { box-shadow: 0 4px 0 hsl(180 90% 55%); }
+  75% { box-shadow: 0 4px 0 hsl(270 90% 65%); }
+  100% { box-shadow: 0 4px 0 hsl(360 90% 65%); }
+}
+
+@keyframes anna-rainbow-text {
+  0% { color: hsl(0 85% 55%); }
+  25% { color: hsl(90 80% 40%); }
+  50% { color: hsl(190 85% 40%); }
+  75% { color: hsl(270 80% 60%); }
+  100% { color: hsl(360 85% 55%); }
+}
+
+/* === Mobil === */
+@media (max-width: 720px) {
+  .anna-mascot {
+    width: 70px;
+  }
+
+  html[data-anna] .tabs {
+    right: 10px;
+    bottom: calc(10px + var(--safe-bottom));
+    left: 10px;
+    padding: 6px;
+    border: 2px solid color-mix(in srgb, var(--anna-a) 28%, transparent);
+    border-radius: 28px;
+    box-shadow: var(--shadow-lg);
+  }
+
+  html[data-anna] .tab-btn {
+    border-radius: 22px;
+  }
+
+  html[data-anna] .tab-btn.active {
+    background: linear-gradient(135deg, var(--anna-a), color-mix(in srgb, var(--anna-a) 55%, var(--anna-b)));
+    color: #fff;
+  }
+
+  html[data-anna] dialog.modal[open] {
+    border-radius: 30px 30px 0 0;
+    animation: anna-sheet-in 0.45s var(--anna-spring);
+  }
+
+  html[data-anna] .shopping-category {
+    margin-left: 8px;
+  }
+
+  html[data-anna] .brand {
+    font-size: 1.9rem;
+  }
+}
+
+/* === Bewegung reduziert (Systemeinstellung oder Schalter „Animationen“ aus) === */
+html[data-anna][data-anna-motion='off'] .anna-particles,
+html[data-anna][data-anna-motion='off'] .anna-fx {
+  display: none;
+}
+
+html[data-anna][data-anna-motion='off'] *,
+html[data-anna][data-anna-motion='off'] *::before,
+html[data-anna][data-anna-motion='off'] *::after {
+  animation: none !important;
+  transition-duration: 0.01ms !important;
+}
+
+/* Mampfi sitzt unten rechts – die Fußzeile lässt ihm Platz, damit der Schalter erreichbar bleibt. */
+html[data-anna] .app-footer {
+  padding-right: 150px;
+}
+
+@media (max-width: 720px) {
+  html[data-anna] .app-footer {
+    padding-right: 96px;
+  }
+}

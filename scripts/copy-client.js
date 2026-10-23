@@ -7,5 +7,6 @@ const source = path.join(root, 'src', 'client');
 const target = path.join(root, 'dist', 'client');
 
 fs.rmSync(target, { recursive: true, force: true });
-fs.cpSync(source, target, { recursive: true });
+// Testdateien gehören nicht ins ausgelieferte Frontend.
+fs.cpSync(source, target, { recursive: true, filter: (file) => !file.endsWith('.test.mjs') });
 console.log('Client files copied.');

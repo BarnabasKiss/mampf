@@ -11,9 +11,11 @@ Deutschsprachige PWA (Einkaufsliste, Gerichte, Wochenplan). Express + SQLite im 
 - Standardansicht ist die **Einkaufsliste** (`DEFAULT_TAB` in `src/client/js/tabs.js`).
 - Abmelden und alle Löschaktionen laufen über `confirmDialog()` (`js/dom.js`) – keine neuen `confirm()`/Einzel-Modals.
 - Kein `innerHTML` mit Nutzerdaten; `el()`/`render()` verwenden.
+- Löschen-Buttons sind Outline (rot umrandet), nie vollflächig rot.
 - Dialoge schließen nicht per Klick daneben (bewusst, wegen iOS).
 - Neue Client-Datei oder neues Asset ⇒ in `APP_SHELL` in `src/client/sw.js` eintragen und `CACHE_NAME` erhöhen.
 - DB-Änderungen nur über neue Migrationen (`migrations/00N-*.sql`), ausgelieferte nie ändern.
 - Router: feste Pfade vor `/:id`. API-Antwortformen nicht still ändern.
 - Reine Logik bekommt Tests (`*.test.ts` am Server, `js/domain.test.mjs` im Client).
+- Das **Anna-Theme** (`src/client/anna/`) ist strikt getrennt: nur über `js/footer.js` einbinden, nichts davon in den Kern importieren (Ausnahme: `loadMealsIntoPlan` in `plan.js`). Neue Optik gehört in `anna.css` unter `html[data-anna]`; neue Sprüche in `phrases.js`. Siehe `docs/anna-theme.md`.
 - Nicht committen/pushen ohne ausdrückliche Anweisung.

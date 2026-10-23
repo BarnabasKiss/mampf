@@ -81,12 +81,22 @@ export function showError(container, messages) {
 
 let toastTimer;
 
-export function showToast(message, type = '') {
+/**
+ * Zeigt eine Meldung. Mit `action` ({label, onClick}) erscheint ein Button
+ * (z. B. „Rückgängig“) und die Meldung bleibt länger stehen.
+ */
+export function showToast(message, type = '', action = null) {
   const toast = byId('toast');
-  toast.textContent = message;
   toast.className = `toast ${type}`.trim();
+  render(toast, el('span', {}, message), action && el('button', {
+    type: 'button', class: 'toast-action',
+    onclick: () => {
+      hide(toast);
+      action.onClick();
+    },
+  }, action.label));
   clearTimeout(toastTimer);
-  toastTimer = setTimeout(() => hide(toast), 3000);
+  toastTimer = setTimeout(() => hide(toast), action ? 7000 : 3000);
 }
 
 // ==================== Dialoge (<dialog>) ====================

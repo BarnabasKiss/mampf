@@ -62,3 +62,16 @@ export function sortShoppingItems(items) {
 export function sameList(a, b, fields) {
   return a.length === b.length && a.every((item, i) => fields.every((f) => item[f] === b[i][f]));
 }
+
+/** Filtert nach Schwierigkeit (0/leer = alle) und sortiert; liefert eine neue Liste. */
+export function filterAndSortMeals(meals, { difficulty = 0, sort = 'name' } = {}) {
+  const byName = (a, b) => a.name.localeCompare(b.name, 'de');
+  const comparators = {
+    name: byName,
+    recent: (a, b) => String(b.updated_at ?? '').localeCompare(String(a.updated_at ?? '')) || byName(a, b),
+    difficulty: (a, b) => a.difficulty - b.difficulty || byName(a, b),
+  };
+  return meals
+    .filter((meal) => !difficulty || meal.difficulty === difficulty)
+    .sort(comparators[sort] ?? byName);
+}

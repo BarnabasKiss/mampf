@@ -45,8 +45,9 @@
   --safe-top: env(safe-area-inset-top, 0px);
 }
 
+/* Dunkel: automatisch per Systemeinstellung (außer „Hell“ ist gewählt) …*/
 @media (prefers-color-scheme: dark) {
-  :root {
+  :root:not([data-theme="light"]) {
     --color-primary: #4cb36a;
     --color-primary-hover: #63c47e;
     --color-on-primary: #08210f;
@@ -79,6 +80,39 @@
   }
 }
 
+/* … oder explizit per Umschalter („Dunkel“). Werte identisch halten! */
+:root[data-theme="dark"] {
+  --color-primary: #4cb36a;
+  --color-primary-hover: #63c47e;
+  --color-on-primary: #08210f;
+  --color-success: #4cb36a;
+  --color-success-hover: #63c47e;
+  --color-danger: #ef6a63;
+  --color-danger-hover: #f58983;
+  --color-secondary: #7d8c84;
+  --color-secondary-hover: #95a39b;
+
+  --color-bg: #0f1a13;
+  --color-surface: #16251b;
+  --color-surface-2: #1d2f23;
+  --color-text: #e6efe8;
+  --color-text-light: #98a89e;
+  --color-border: #2a3d30;
+  --color-focus: rgba(76, 179, 106, 0.35);
+  --color-danger-bg: #3a1c1b;
+  --color-warning: #f0a35a;
+
+  --diff-easy: #6fd18a;
+  --diff-easy-bg: #17321f;
+  --diff-medium: #6bb6e6;
+  --diff-medium-bg: #15293a;
+  --diff-hard: #f0a35a;
+  --diff-hard-bg: #3a2a15;
+
+  --shadow: 0 1px 2px rgba(0, 0, 0, 0.4);
+  --shadow-lg: 0 8px 32px rgba(0, 0, 0, 0.6);
+}
+
 /* === Basis === */
 *, *::before, *::after {
   box-sizing: border-box;
@@ -88,6 +122,7 @@
 
 html {
   -webkit-text-size-adjust: 100%;
+  overscroll-behavior-y: contain; /* natives Pull-to-refresh aus; ersetzt durch pull-to-refresh.js */
 }
 
 body {
@@ -270,8 +305,8 @@ button {
 .btn-secondary:hover:not(:disabled) { background: var(--color-border); }
 .btn-success { background: var(--color-success); color: var(--color-on-primary); }
 .btn-success:hover:not(:disabled) { background: var(--color-success-hover); }
-.btn-danger { background: var(--color-danger); color: #fff; }
-.btn-danger:hover:not(:disabled) { background: var(--color-danger-hover); }
+.btn-danger { background: transparent; color: var(--color-danger); border: 1px solid var(--color-danger); }
+.btn-danger:hover:not(:disabled) { background: var(--color-danger-bg); }
 
 .btn-small {
   min-height: 36px;
@@ -301,9 +336,11 @@ button {
 .btn-icon:hover { background: var(--color-border); }
 .btn-icon-edit { color: var(--color-primary); }
 .btn-icon-duplicate { color: var(--color-text-light); }
-.btn-icon-delete { color: var(--color-danger); }
+.btn-icon-delete { background: transparent; color: var(--color-danger); border: 1px solid var(--color-danger); }
 .btn-icon-delete:hover { background: var(--color-danger-bg); }
+.btn-icon-theme,
 .btn-icon-logout { background: none; color: var(--color-text-light); }
+.btn-icon-theme:hover { background: var(--color-surface-2); color: var(--color-text); }
 .btn-icon-logout:hover { background: var(--color-danger-bg); color: var(--color-danger); }
 
 .btn-remove-row,
@@ -543,6 +580,58 @@ legend {
   margin-top: 4px;
 }
 
+.filter-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin: -8px 0 16px;
+}
+
+.filter-field {
+  display: flex;
+  flex: 1 1 160px;
+  align-items: center;
+  gap: 8px;
+  color: var(--color-text-light);
+  font-size: 0.85rem;
+}
+
+.filter-field select {
+  flex: 1;
+  width: auto;
+  min-height: 38px;
+  padding: 6px 10px;
+  color: var(--color-text);
+}
+
+/* === Pull-to-refresh === */
+.ptr-indicator {
+  position: fixed;
+  top: var(--safe-top);
+  left: 50%;
+  z-index: 150;
+  display: grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: var(--color-surface);
+  color: var(--color-text-light);
+  box-shadow: var(--shadow-lg);
+  opacity: 0;
+  pointer-events: none;
+  transform: translate(-50%, -56px);
+}
+
+.ptr-indicator.visible { opacity: 1; }
+.ptr-indicator.ready { color: var(--color-primary); }
+.ptr-indicator.loading { opacity: 1; transition: transform 0.15s; }
+.ptr-indicator.loading .icon { animation: spin 0.8s linear infinite; }
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
 /* === Wochenplan === */
 .plan-card-body {
   display: grid;
@@ -738,13 +827,46 @@ legend {
   border-top: 1px solid var(--color-border);
 }
 
+.shopping-swipe {
+  position: relative;
+  overflow: hidden;
+  border-bottom: 1px solid var(--color-border);
+  touch-action: pan-y; /* vertikales Scrollen bleibt, horizontale Wischgesten übernimmt shopping.js */
+}
+
+.swipe-hint {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 20px;
+  color: #fff;
+  font-size: 1.3rem;
+  opacity: 0;
+}
+
+.shopping-swipe.swipe-right .swipe-hint,
+.shopping-swipe.swipe-left .swipe-hint { opacity: 1; }
+.shopping-swipe.swipe-right .swipe-hint { background: var(--color-success); }
+.shopping-swipe.swipe-left .swipe-hint { background: var(--color-danger); }
+.shopping-swipe.swipe-right .swipe-hint .icon:last-child,
+.shopping-swipe.swipe-left .swipe-hint .icon:first-child { visibility: hidden; }
+.shopping-swipe.swipe-armed .swipe-hint { filter: brightness(0.85); }
+
 .shopping-item {
+  position: relative;
   display: grid;
   grid-template-columns: 28px 1fr minmax(70px, 130px) 40px;
   align-items: center;
   gap: 8px;
   padding: 6px 0;
-  border-bottom: 1px solid var(--color-border);
+  background: var(--color-surface);
+  transition: transform 0.2s ease-out;
+}
+
+.shopping-item.dragging {
+  transition: none;
 }
 
 .shopping-checkbox {
@@ -841,6 +963,78 @@ dialog.modal::backdrop {
   margin-top: 8px;
 }
 
+/* === Fußzeile & Schalter für das optionale Anna-Theme === */
+.app-footer {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px 20px;
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: 8px 16px 32px;
+  color: var(--color-text-light);
+  font-size: 0.85rem;
+}
+
+.anna-controls-slot {
+  flex-basis: 100%;
+}
+
+.anna-controls-slot:empty {
+  display: none;
+}
+
+.anna-switch {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  cursor: pointer;
+}
+
+.anna-switch input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+}
+
+.anna-switch-track {
+  position: relative;
+  width: 44px;
+  height: 24px;
+  border-radius: 999px;
+  background: var(--color-border);
+  transition: background 0.2s;
+}
+
+.anna-switch-track::after {
+  content: '';
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+  transition: transform 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.anna-switch input:checked + .anna-switch-track {
+  background: var(--color-primary);
+}
+
+.anna-switch input:checked + .anna-switch-track::after {
+  transform: translateX(20px);
+}
+
+.anna-switch input:focus-visible + .anna-switch-track {
+  outline: 3px solid var(--color-focus);
+  outline-offset: 2px;
+}
+
 /* === Toast === */
 .toast {
   position: fixed;
@@ -857,6 +1051,26 @@ dialog.modal::backdrop {
   animation: toast-in 0.2s ease-out;
 }
 
+.toast {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.toast-action {
+  padding: 4px 8px;
+  border: none;
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.18);
+  color: #fff;
+  font-weight: 700;
+  text-transform: uppercase;
+  font-size: 0.78rem;
+  letter-spacing: 0.04em;
+}
+
+.toast-action:hover { background: rgba(255, 255, 255, 0.3); }
+
 .toast.success { background: #1f7a36; }
 .toast.error { background: #b02a26; }
 
@@ -866,8 +1080,8 @@ dialog.modal::backdrop {
 
 /* === Mobil: Tab-Leiste unten, Dialoge als Bottom-Sheet === */
 @media (max-width: 720px) {
-  .app-header {
-    justify-content: space-between;
+  .btn-icon-theme {
+    margin-left: auto;
   }
 
   .tabs {
@@ -905,6 +1119,10 @@ dialog.modal::backdrop {
   }
 
   .app-main {
+    padding-bottom: 16px;
+  }
+
+  .app-footer {
     padding-bottom: calc(var(--nav-height) + 24px + var(--safe-bottom));
   }
 
@@ -973,3 +1191,6 @@ dialog.modal::backdrop {
     transition-duration: 0.01ms !important;
   }
 }
+
+:root[data-theme="light"] { color-scheme: light; }
+:root[data-theme="dark"] { color-scheme: dark; }

@@ -5,7 +5,7 @@
  * damit der Wochenplan seine Daten beim nächsten Anzeigen abgleicht.
  */
 import { mealsApi } from './api.js';
-import { DIFFICULTIES, ingredientsPreview } from './domain.js';
+import { DIFFICULTIES, filterAndSortMeals, ingredientsPreview } from './domain.js';
 import {
   bindClose, byId, closeModal, confirmDialog, debounce, el, hide, icon, openModal, render,
   setVisible, showError, showToast,
@@ -13,6 +13,8 @@ import {
 
 let meals = [];
 let searchTerm = '';
+let difficultyFilter = 0;
+let sortMode = 'name';
 let editingMealId = null;
 
 export function difficultyBadge(difficulty) {
@@ -39,12 +41,14 @@ function iconButton(kind, title, iconName, onClick) {
 }
 
 function renderMeals() {
+  const visibleMeals = filterAndSortMeals(meals, { difficulty: difficultyFilter, sort: sortMode });
   const grid = byId('meals-grid');
-  setVisible(grid, meals.length > 0);
-  setVisible(byId('no-meals'), meals.length === 0);
-  byId('no-meals-text').textContent = searchTerm ? 'Keine passenden Gerichte gefunden.' : 'Noch keine Gerichte vorhanden. Füge dein erstes Gericht hinzu!';
+  setVisible(grid, visibleMeals.length > 0);
+  setVisible(byId('no-meals'), visibleMeals.length === 0);
+  const filtered = searchTerm || difficultyFilter;
+  byId('no-meals-text').textContent = filtered ? 'Keine passenden Gerichte gefunden.' : 'Noch keine Gerichte vorhanden. Füge dein erstes Gericht hinzu!';
 
-  render(grid, meals.map((meal) =>
+  render(grid, visibleMeals.map((meal) =>
     el('article', { class: 'meal-card' },
       el('div', { class: 'meal-card-header' },
         el('h3', {}, meal.name),
@@ -185,6 +189,15 @@ export function initMeals() {
     searchTerm = event.target.value.trim();
     loadMeals();
   }, 300));
+
+  byId('meal-difficulty-filter').addEventListener('change', (event) => {
+    difficultyFilter = parseInt(event.target.value, 10);
+    renderMeals();
+  });
+  byId('meal-sort').addEventListener('change', (event) => {
+    sortMode = event.target.value;
+    renderMeals();
+  });
 
   byId('add-meal-btn').addEventListener('click', () => openMealForm(null));
   byId('add-ingredient-btn').addEventListener('click', () => addIngredientRow());
