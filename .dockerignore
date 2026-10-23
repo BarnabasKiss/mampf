@@ -1,0 +1,15 @@
+node_modules
+dist
+dist-test
+data
+.git
+.github
+.claude
+.env
+.env.*
+!.env.example
+*.sqlite
+*.sqlite-wal
+*.sqlite-shm
+docker-compose*.yml
+*.md

@@ -1,124 +1,84 @@
-# 🍽️ Mampf – Wochen-Essensplaner
+# 🍲 Mampf
 
-Eine deutschsprachige Web-App zum Verwalten von Gerichten und Generieren eines Wochen-Essensplans. Zutatenmengen werden anhand der Portionen skaliert und können als WhatsApp-Text kopiert werden.
+Mampf ist eine deutschsprachige Web-App (PWA) für den Haushalt: eine **gemeinsame Einkaufsliste**, eine **Gerichte-Sammlung** und ein **Wochenplan**, der Zutaten pro Portion hochrechnet und direkt auf die Einkaufsliste oder per WhatsApp-Text weitergegeben werden kann.
 
 ## Funktionen
 
-- **Gerichte verwalten**: Erstellen, Bearbeiten, Duplizieren, Löschen und Durchsuchen von Gerichten mit Zutaten
-- **Wochenplan generieren**: Zufällige Auswahl von 3 Gerichten, einzelne Gerichte ersetzen/entfernen/hinzufügen
-- **Zufällig hinzufügen**: Ein zufälliges Gericht zum bestehenden Plan ergänzen
-- **Portionsskalierung**: Zutatenmengen werden automatisch an die gewünschte Portionsanzahl angepasst
-- **WhatsApp-Export**: Einkaufsliste als formatierter Text (mit Fettdruck) in die Zwischenablage kopieren
-- **Mobile Optimierung**: Responsive UI mit Cards statt Tabelle auf kleinen Bildschirmen
+| Bereich | Was geht |
+|---|---|
+| **Einkaufsliste** (Startansicht) | Kategorien anlegen/umbenennen/löschen und ein-/ausklappen, Zeilen direkt bearbeiten, abhaken, Abgehakte löschen, Live-Synchronisierung zwischen Geräten (Polling), Vorlagen speichern/verwalten/anwenden |
+| **Gerichte** | Anlegen, bearbeiten, duplizieren, löschen, durchsuchen; Zutaten in Packungen, Schwierigkeit 1–3, Standardportionen |
+| **Wochenplan** | 3 zufällige Gerichte, einzelne ersetzen/entfernen/ergänzen, Portionen anpassen (Mengen werden aufgerundet), WhatsApp-Text kopieren, Zutaten zur Einkaufsliste hinzufügen; bleibt nach einem App-Neustart erhalten |
+| **PWA** | Installierbar, offlinefähige App-Shell, Dunkelmodus, Tab-Leiste unten auf dem Handy |
+| **Sicherheit** | Session-Login, Login-Limit, Abmelden nur nach Bestätigung |
 
-## Technologie
+## Schnellstart
 
-- **Frontend**: HTML, CSS, Vanilla JavaScript, Ionicons
-- **Backend**: Node.js mit TypeScript und Express
-- **Datenbank**: SQLite (better-sqlite3)
-- **Authentifizierung**: Session-basiert mit Benutzername/Passwort (Klartext)
-- **Deployment**: Docker und Docker Compose
-- **CI/CD**: GitHub Actions → GHCR
-
-## Schnellstart (Entwicklung)
+Voraussetzung: Node.js ≥ 20.
 
 ```bash
 npm install
-
-# .env-Datei erstellen (siehe .env.example)
-cp .env.example .env
-# Werte anpassen: APP_USERNAME, APP_PASSWORD, SESSION_SECRET
-
+cp .env.example .env        # APP_USERNAME, APP_PASSWORD, SESSION_SECRET setzen
 npm run build
-npm start
+npm start                   # → http://localhost:3000
 ```
 
-→ http://localhost:3000
+## Konfiguration
 
-## Deployment via Docker Compose
+Alle Einstellungen laufen über Umgebungsvariablen (lokal: `.env`).
 
-### Lokal bauen
+| Variable | Pflicht | Standard | Beschreibung |
+|---|---|---|---|
+| `APP_USERNAME` | ✅ | – | Benutzername für den Login |
+| `APP_PASSWORD` | ✅ | – | Passwort (Klartext in der Umgebung, Vergleich zeitkonstant) |
+| `SESSION_SECRET` | ✅ | – | Geheimnis zum Signieren der Session, z. B. `openssl rand -hex 32` |
+| `PORT` | | `3000` | HTTP-Port |
+| `DATABASE_PATH` | | `./data/meals.sqlite` | Pfad zur SQLite-Datei (im Container `/app/data/meals.sqlite`) |
+| `COOKIE_SECURE` | | `false` | `true`, sobald die App über HTTPS läuft – sonst wird das Cookie nicht gesendet |
+| `TRUST_PROXY` | | leer | z. B. `1` hinter genau einem Reverse Proxy, damit das Login-Limit die echte Client-IP sieht |
+
+> Ohne `APP_USERNAME`, `APP_PASSWORD` und `SESSION_SECRET` startet der Server nicht (es gibt bewusst keine Standardwerte).
+
+## Deployment mit Docker
+
+Bei jedem Push auf `main` baut GitHub Actions das Image und veröffentlicht es als `ghcr.io/barnabaskiss/mampf:latest` – **nachdem** Typprüfung, Build und Tests grün waren.
 
 ```bash
-# .env-Datei erstellen
-# APP_USERNAME=admin
-# APP_PASSWORD=mein-passwort
-# SESSION_SECRET=ein-langer-zufaelliger-string
-
+mkdir -p data && chown 1000:1000 data     # Container läuft als Benutzer "node" (UID 1000)
+export APP_USERNAME=admin APP_PASSWORD=… SESSION_SECRET=$(openssl rand -hex 32)
 docker compose up -d
 ```
 
-### CasaOS / GHCR-Image verwenden
+- Daten liegen im Volume `./data` (SQLite, WAL). **Das Verzeichnis einfach sichern.**
+- `GET /healthz` dient als Healthcheck (ohne Login).
+- Lokal bauen statt GHCR-Image: in `docker-compose.yml` `image:` auskommentieren und `build: .` aktivieren.
+- Hinter einem Reverse Proxy mit HTTPS: `COOKIE_SECURE=true` und `TRUST_PROXY=1` setzen.
 
-Das Image wird bei jedem Push auf `main` automatisch via GitHub Actions gebaut und nach **ghcr.io** gepusht.
+### Hinweis für bestehende Installationen
 
-```yaml
-# docker-compose.yml für CasaOS:
-services:
-  meal-planner:
-    image: ghcr.io/barnabaskiss/mampf:latest
-    container_name: meal-planner
-    restart: unless-stopped
-    ports:
-      - "3000:3000"
-    environment:
-      APP_USERNAME: admin
-      APP_PASSWORD: mein-passwort
-      SESSION_SECRET: ein-langer-zufaelliger-string
-      DATABASE_PATH: /app/data/meals.sqlite
-    volumes:
-      - ./data:/app/data
-```
+Gegenüber früheren Versionen gilt jetzt:
 
-## Umgebungsvariablen
+- Pflicht-Variablen: Fehlt eine, bricht der Start mit einer klaren Meldung ab (früher: Standardwerte `admin`/`change-me-in-production`).
+- Der Container läuft nicht mehr als root. Ein bestehendes `./data`-Verzeichnis muss für UID 1000 schreibbar sein: `chown -R 1000:1000 data`.
+- Migrationen werden jetzt in der Tabelle `schema_migrations` nachgehalten; bestehende Datenbanken werden automatisch übernommen.
 
-| Variable | Beschreibung |
+## Befehle
+
+| Befehl | Zweck |
 |---|---|
-| `APP_USERNAME` | Benutzername für die Anmeldung |
-| `APP_PASSWORD` | Passwort im Klartext |
-| `SESSION_SECRET` | Geheimer Schlüssel für die Session-Verschlüsselung |
-| `PORT` | Port für den Webserver (Standard: 3000) |
-| `DATABASE_PATH` | Pfad zur SQLite-Datenbank |
+| `npm run build` | Server (TypeScript → `dist/`) bauen und Client nach `dist/client` kopieren |
+| `npm start` / `npm run start:prod` | Server starten (mit bzw. ohne `.env`-Datei) |
+| `npm run dev` | Bauen und mit Watch-Modus starten |
+| `npm run typecheck` | Typprüfung |
+| `npm test` | Server- und Client-Tests |
+| `npm run migrate` | Datenbank-Migrationen manuell ausführen |
 
-## Projektstruktur
+## Weiterführende Doku
 
-```
-.
-├── .github/workflows/
-│   └── docker-build.yml     # CI/CD: Docker Build & Push nach GHCR
-├── src/
-│   ├── server/
-│   │   ├── index.ts          # Server-Einstiegspunkt
-│   │   ├── database.ts       # Datenbank-Verbindung
-│   │   ├── auth.ts           # Authentifizierung
-│   │   ├── routes/
-│   │   │   ├── auth.routes.ts
-│   │   │   └── meals.routes.ts
-│   │   └── services/
-│   │       └── meal.service.ts
-│   └── client/
-│       ├── index.html
-│       ├── main.js           # Frontend-Logik
-│       ├── styles.css
-│       └── types.ts          # Typdefinitionen
-├── migrations/
-│   └── 001-initial.sql
-├── Dockerfile
-├── docker-compose.yml
-└── package.json
-```
+- [Architektur](docs/architecture.md) – Aufbau, Datenmodell, API
+- [Entwicklung](docs/development.md) – Konventionen, Tests, Migrationen, PWA/Icons, Release
+- [CLAUDE.md](CLAUDE.md) – Kurzleitfaden für die Arbeit mit Claude Code
 
-## API
+## Lizenzen
 
-### Authentifizierung
-- `POST /api/login` – Anmeldung
-- `POST /api/logout` – Abmeldung
-- `GET /api/session` – Session-Status prüfen
-
-### Gerichte
-- `GET /api/meals` – Alle Gerichte (optional: `?search=`)
-- `GET /api/meals/random?count=3&exclude=1,2` – Zufällige Gerichte
-- `GET /api/meals/:id` – Einzelnes Gericht
-- `POST /api/meals` – Gericht erstellen
-- `PUT /api/meals/:id` – Gericht bearbeiten
-- `DELETE /api/meals/:id` – Gericht löschen
+Die Icons in `src/client/icons/sprite.svg` stammen aus [Ionicons](https://ionic.io/ionicons) (MIT).

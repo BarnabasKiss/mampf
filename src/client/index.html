@@ -2,10 +2,12 @@
 <html lang="de">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
   <title>Mampf</title>
-  <meta name="description" content="Wochen-Essensplaner">
-  <meta name="theme-color" content="#4a90d9">
+  <meta name="description" content="Einkaufsliste, Gerichte und Wochenplan">
+  <meta name="theme-color" content="#2b8a3e" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#14231a" media="(prefers-color-scheme: dark)">
+  <meta name="color-scheme" content="light dark">
   <link rel="manifest" href="/manifest.json">
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-capable" content="yes">
@@ -14,372 +16,303 @@
   <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png">
   <link rel="icon" type="image/svg+xml" href="/icons/icon.svg">
   <link rel="icon" type="image/png" sizes="32x32" href="/icons/icon-32.png">
-  <link rel="icon" type="image/png" sizes="192x192" href="/icons/icon-192.png">
-  <link rel="stylesheet" href="styles.css">
-  <script type="module" src="https://unpkg.com/ionicons@7.4.0/dist/ionicons/ionicons.esm.js"></script>
+  <link rel="stylesheet" href="/styles.css">
+  <script type="module" src="/js/main.js"></script>
 </head>
 <body>
-  <!-- Login-Bereich -->
-  <div id="login-page" class="page">
-    <div class="login-container">
-      <h1>🍽️ Mampf</h1>
-      <p class="subtitle">Wochen-Essensplaner</p>
+  <!-- ==================== Login ==================== -->
+  <div id="login-page" class="page hidden">
+    <main class="login-card">
+      <img class="login-logo" src="/icons/icon.svg" alt="" width="88" height="88">
+      <h1>Mampf</h1>
+      <p class="subtitle">Einkaufsliste &amp; Wochenplan</p>
       <form id="login-form">
         <div class="form-group">
           <label for="username">Benutzername</label>
-          <input type="text" id="username" name="username" required autocomplete="username">
+          <input type="text" id="username" name="username" required autocomplete="username" autocapitalize="none">
         </div>
         <div class="form-group">
           <label for="password">Passwort</label>
           <input type="password" id="password" name="password" required autocomplete="current-password">
         </div>
-        <div id="login-error" class="error-message hidden"></div>
+        <div id="login-error" class="error-message hidden" role="alert"></div>
         <button type="submit" class="btn btn-primary btn-full">
-          <ion-icon name="lock-open-outline"></ion-icon> Anmelden
+          <svg class="icon" aria-hidden="true"><use href="/icons/sprite.svg#i-lock-open"/></svg> Anmelden
         </button>
       </form>
-    </div>
+    </main>
   </div>
 
-  <!-- Hauptanwendung -->
+  <!-- ==================== App ==================== -->
   <div id="app-page" class="page hidden">
-    <header>
-      <h1>🍽️ Mampf</h1>
-      <nav>
-        <button class="tab-btn active" data-tab="meals">
-          <ion-icon name="restaurant-outline"></ion-icon> <span class="tab-label">Gerichte</span>
+    <header class="app-header">
+      <div class="brand">
+        <img src="/icons/icon.svg" alt="" width="32" height="32">
+        <span>Mampf</span>
+      </div>
+      <nav class="tabs" role="tablist" aria-label="Bereiche">
+        <button class="tab-btn active" role="tab" id="tab-btn-shopping-list" data-tab="shopping-list" aria-selected="true" aria-controls="tab-shopping-list">
+          <svg class="icon" aria-hidden="true"><use href="/icons/sprite.svg#i-cart"/></svg>
+          <span class="tab-label">Einkaufsliste</span>
         </button>
-        <button class="tab-btn" data-tab="weekly-plan">
-          <ion-icon name="calendar-outline"></ion-icon> <span class="tab-label">Wochenplan</span>
+        <button class="tab-btn" role="tab" id="tab-btn-meals" data-tab="meals" aria-selected="false" aria-controls="tab-meals">
+          <svg class="icon" aria-hidden="true"><use href="/icons/sprite.svg#i-restaurant"/></svg>
+          <span class="tab-label">Gerichte</span>
         </button>
-        <button class="tab-btn" data-tab="shopping-list">
-          <ion-icon name="cart-outline"></ion-icon> <span class="tab-label">Einkaufsliste</span>
-        </button>
-        <button id="logout-btn" class="btn-icon btn-icon-logout" title="Abmelden">
-          <ion-icon name="log-out-outline"></ion-icon>
+        <button class="tab-btn" role="tab" id="tab-btn-weekly-plan" data-tab="weekly-plan" aria-selected="false" aria-controls="tab-weekly-plan">
+          <svg class="icon" aria-hidden="true"><use href="/icons/sprite.svg#i-calendar"/></svg>
+          <span class="tab-label">Wochenplan</span>
         </button>
       </nav>
+      <button id="logout-btn" class="btn-icon btn-icon-logout" type="button" title="Abmelden" aria-label="Abmelden">
+        <svg class="icon" aria-hidden="true"><use href="/icons/sprite.svg#i-log-out"/></svg>
+      </button>
     </header>
 
-    <main>
+    <main class="app-main">
+      <!-- Tab: Einkaufsliste (Standardansicht) -->
+      <section id="tab-shopping-list" class="tab-content active" role="tabpanel" aria-labelledby="tab-btn-shopping-list">
+        <div class="toolbar">
+          <button id="add-category-btn" class="btn btn-secondary" type="button">
+            <svg class="icon" aria-hidden="true"><use href="/icons/sprite.svg#i-folder"/></svg> Neue Kategorie
+          </button>
+          <button id="clear-checked-btn" class="btn btn-secondary" type="button">
+            <svg class="icon" aria-hidden="true"><use href="/icons/sprite.svg#i-checkmark-done"/></svg> Abgehakte löschen
+          </button>
+          <button id="save-as-template-btn" class="btn btn-secondary" type="button">
+            <svg class="icon" aria-hidden="true"><use href="/icons/sprite.svg#i-bookmark"/></svg> Vorlage speichern
+          </button>
+          <button id="manage-templates-btn" class="btn btn-secondary" type="button">
+            <svg class="icon" aria-hidden="true"><use href="/icons/sprite.svg#i-settings"/></svg> Vorlagen
+          </button>
+          <span class="sync-indicator" id="sync-indicator" role="status" title="Synchronisiert">
+            <span class="sync-dot"></span>
+            <span class="visually-hidden">Synchronisierungsstatus</span>
+          </span>
+        </div>
+
+        <div id="shopping-categories"></div>
+        <div id="no-shopping-items" class="empty-state hidden">
+          <svg class="icon empty-icon" aria-hidden="true"><use href="/icons/sprite.svg#i-cart"/></svg>
+          <p>Die Einkaufsliste ist leer.</p>
+          <p>Füge Zeilen hinzu, übernimm den Wochenplan oder lade eine Vorlage.</p>
+        </div>
+      </section>
+
       <!-- Tab: Gerichte -->
-      <section id="tab-meals" class="tab-content active">
+      <section id="tab-meals" class="tab-content" role="tabpanel" aria-labelledby="tab-btn-meals">
         <div class="toolbar">
           <div class="search-box">
-            <ion-icon name="search-outline" class="search-icon"></ion-icon>
-            <input type="text" id="meal-search" placeholder="Gerichte durchsuchen...">
+            <svg class="icon search-icon" aria-hidden="true"><use href="/icons/sprite.svg#i-search"/></svg>
+            <input type="search" id="meal-search" placeholder="Gerichte durchsuchen …" aria-label="Gerichte durchsuchen">
           </div>
-          <button id="add-meal-btn" class="btn btn-primary">
-            <ion-icon name="add-outline"></ion-icon> Neues Gericht
+          <button id="add-meal-btn" class="btn btn-primary" type="button">
+            <svg class="icon" aria-hidden="true"><use href="/icons/sprite.svg#i-add"/></svg> Neues Gericht
           </button>
         </div>
-
-        <div id="meals-table-container">
-          <div class="table-responsive">
-            <table id="meals-table">
-              <thead>
-                <tr>
-                  <th>Gericht</th>
-                  <th class="th-diff">Schwierigkeit</th>
-                  <th class="th-portions">Port.</th>
-                  <th class="th-ingredients">Zutaten</th>
-                  <th class="th-actions">Aktionen</th>
-                </tr>
-              </thead>
-              <tbody id="meals-tbody">
-              </tbody>
-            </table>
-          </div>
-          <div id="no-meals" class="empty-state hidden">
-            <ion-icon name="restaurant-outline" class="empty-icon"></ion-icon>
-            <p>Noch keine Gerichte vorhanden.</p>
-            <p>Füge dein erstes Gericht hinzu!</p>
-          </div>
+        <div id="meals-grid" class="meals-grid"></div>
+        <div id="no-meals" class="empty-state hidden">
+          <svg class="icon empty-icon" aria-hidden="true"><use href="/icons/sprite.svg#i-restaurant"/></svg>
+          <p id="no-meals-text">Noch keine Gerichte vorhanden.</p>
         </div>
-
-        <!-- Mobile: Cards statt Tabelle -->
-        <div id="meals-cards" class="meals-cards hidden"></div>
       </section>
 
       <!-- Tab: Wochenplan -->
-      <section id="tab-weekly-plan" class="tab-content">
+      <section id="tab-weekly-plan" class="tab-content" role="tabpanel" aria-labelledby="tab-btn-weekly-plan">
         <div class="toolbar">
-          <button id="generate-plan-btn" class="btn btn-primary">
-            <ion-icon name="shuffle-outline"></ion-icon> 3 Gerichte generieren
+          <button id="generate-plan-btn" class="btn btn-primary" type="button">
+            <svg class="icon" aria-hidden="true"><use href="/icons/sprite.svg#i-shuffle"/></svg> 3 Gerichte generieren
           </button>
-          <button id="add-to-plan-btn" class="btn btn-secondary">
-            <ion-icon name="list-outline"></ion-icon> Gericht auswählen
+          <button id="add-to-plan-btn" class="btn btn-secondary" type="button">
+            <svg class="icon" aria-hidden="true"><use href="/icons/sprite.svg#i-list"/></svg> Gericht auswählen
           </button>
-          <button id="random-add-plan-btn" class="btn btn-secondary">
-            <ion-icon name="dice-outline"></ion-icon> Zufällig hinzufügen
+          <button id="random-add-plan-btn" class="btn btn-secondary" type="button">
+            <svg class="icon" aria-hidden="true"><use href="/icons/sprite.svg#i-dice"/></svg> Zufällig hinzufügen
           </button>
-          <button id="copy-whatsapp-btn" class="btn btn-success">
-            <ion-icon name="copy-outline"></ion-icon> WhatsApp-Text kopieren
+          <button id="copy-whatsapp-btn" class="btn btn-success" type="button">
+            <svg class="icon" aria-hidden="true"><use href="/icons/sprite.svg#i-copy"/></svg> WhatsApp-Text kopieren
           </button>
-          <button id="add-to-shopping-btn" class="btn btn-success">
-            <ion-icon name="cart-outline"></ion-icon> Zur Einkaufsliste
+          <button id="add-to-shopping-btn" class="btn btn-success" type="button">
+            <svg class="icon" aria-hidden="true"><use href="/icons/sprite.svg#i-cart"/></svg> Zur Einkaufsliste
           </button>
         </div>
-
-        <div id="weekly-plan-container">
-          <div id="no-plan" class="empty-state">
-            <ion-icon name="calendar-outline" class="empty-icon"></ion-icon>
-            <p>Noch kein Wochenplan erstellt.</p>
-            <p>Klicke auf „3 Gerichte generieren", um zu starten!</p>
-          </div>
-          <div id="plan-cards" class="plan-cards hidden">
-          </div>
-        </div>
-
-        <!-- Modal: Gericht auswählen -->
-        <div id="add-to-plan-modal" class="modal hidden">
-          <div class="modal-content">
-            <h2>Gericht auswählen</h2>
-            <div class="search-box modal-search">
-              <ion-icon name="search-outline" class="search-icon"></ion-icon>
-              <input type="text" id="modal-meal-search" placeholder="Gerichte durchsuchen...">
-            </div>
-            <div id="available-meals-list" class="available-meals">
-            </div>
-            <div class="modal-actions">
-              <button id="cancel-add-to-plan-btn" class="btn btn-secondary">
-                <ion-icon name="close-outline"></ion-icon> Abbrechen
-              </button>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      <!-- Tab: Einkaufsliste -->
-      <section id="tab-shopping-list" class="tab-content">
-        <div class="toolbar">
-          <button id="add-category-btn" class="btn btn-secondary">
-            <ion-icon name="folder-outline"></ion-icon> Neue Kategorie
-          </button>
-          <button id="clear-checked-btn" class="btn btn-secondary">
-            <ion-icon name="checkmark-done-outline"></ion-icon> Abgehakte löschen
-          </button>
-          <button id="save-as-template-btn" class="btn btn-secondary">
-            <ion-icon name="bookmark-outline"></ion-icon> Vorlage speichern
-          </button>
-          <button id="manage-templates-btn" class="btn btn-secondary">
-            <ion-icon name="settings-outline"></ion-icon> Vorlagen verwalten
-          </button>
-          <div class="sync-indicator" id="sync-indicator" title="Synchronisiert">
-            <span class="sync-dot"></span>
-          </div>
-        </div>
-
-        <div id="shopping-list-container">
-          <div id="shopping-categories"></div>
-          <div id="no-shopping-items" class="empty-state hidden">
-            <ion-icon name="cart-outline" class="empty-icon"></ion-icon>
-            <p>Einkaufsliste ist leer.</p>
-            <p>Füge Items hinzu oder lade eine Vorlage!</p>
-          </div>
+        <div id="plan-cards" class="plan-cards"></div>
+        <div id="no-plan" class="empty-state">
+          <svg class="icon empty-icon" aria-hidden="true"><use href="/icons/sprite.svg#i-calendar"/></svg>
+          <p>Noch kein Wochenplan erstellt.</p>
+          <p>Klicke auf „3 Gerichte generieren“, um zu starten.</p>
         </div>
       </section>
     </main>
   </div>
 
-  <!-- Modal: Gericht bearbeiten / erstellen -->
-  <div id="meal-form-modal" class="modal hidden">
+  <!-- ==================== Dialoge ==================== -->
+
+  <!-- Allgemeiner Bestätigungsdialog (Abmelden, Löschen …) -->
+  <dialog id="confirm-dialog" class="modal modal-small" aria-labelledby="confirm-dialog-title">
+    <form method="dialog" class="modal-content">
+      <h2 id="confirm-dialog-title"></h2>
+      <div id="confirm-dialog-body" class="modal-body"></div>
+      <div class="modal-actions">
+        <button id="confirm-dialog-confirm" class="btn btn-primary" type="submit" value="confirm"></button>
+        <button id="confirm-dialog-cancel" class="btn btn-secondary" type="submit" value="cancel">
+          <svg class="icon" aria-hidden="true"><use href="/icons/sprite.svg#i-close"/></svg> Abbrechen
+        </button>
+      </div>
+    </form>
+  </dialog>
+
+  <!-- Gericht für den Wochenplan auswählen -->
+  <dialog id="add-to-plan-modal" class="modal" aria-labelledby="add-to-plan-title">
+    <div class="modal-content">
+      <h2 id="add-to-plan-title">Gericht auswählen</h2>
+      <div class="search-box modal-search">
+        <svg class="icon search-icon" aria-hidden="true"><use href="/icons/sprite.svg#i-search"/></svg>
+        <input type="search" id="modal-meal-search" placeholder="Gerichte durchsuchen …" aria-label="Gerichte durchsuchen">
+      </div>
+      <div id="available-meals-list" class="available-meals"></div>
+      <div class="modal-actions">
+        <button id="cancel-add-to-plan-btn" class="btn btn-secondary" type="button">
+          <svg class="icon" aria-hidden="true"><use href="/icons/sprite.svg#i-close"/></svg> Abbrechen
+        </button>
+      </div>
+    </div>
+  </dialog>
+
+  <!-- Gericht erstellen / bearbeiten -->
+  <dialog id="meal-form-modal" class="modal" aria-labelledby="meal-form-title">
     <div class="modal-content">
       <h2 id="meal-form-title">Neues Gericht</h2>
-      <form id="meal-form">
-        <input type="hidden" id="meal-id" value="">
+      <form id="meal-form" novalidate>
         <div class="form-group">
           <label for="meal-name">Name *</label>
           <input type="text" id="meal-name" required maxlength="200">
         </div>
-        <div class="form-group">
-          <label for="meal-difficulty">Schwierigkeit *</label>
-          <select id="meal-difficulty" required>
-            <option value="1">1 – Einfach</option>
-            <option value="2">2 – Mittel</option>
-            <option value="3">3 – Schwer</option>
-          </select>
-        </div>
-        <div class="form-group">
-          <label for="meal-portions">Standardportionen *</label>
-          <input type="number" id="meal-portions" min="1" value="2" required>
-        </div>
-
-        <fieldset>
-          <legend>Zutaten</legend>
-          <div id="ingredients-list">
+        <div class="form-row">
+          <div class="form-group">
+            <label for="meal-difficulty">Schwierigkeit *</label>
+            <select id="meal-difficulty" required>
+              <option value="1">1 – Einfach</option>
+              <option value="2">2 – Mittel</option>
+              <option value="3">3 – Schwer</option>
+            </select>
           </div>
+          <div class="form-group">
+            <label for="meal-portions">Standardportionen *</label>
+            <input type="number" id="meal-portions" min="1" value="2" required inputmode="numeric">
+          </div>
+        </div>
+        <fieldset>
+          <legend>Zutaten (Packungen)</legend>
+          <div id="ingredients-list" class="row-list"></div>
           <button type="button" id="add-ingredient-btn" class="btn btn-secondary btn-small">
-            <ion-icon name="add-outline"></ion-icon> Weitere Zutat
+            <svg class="icon" aria-hidden="true"><use href="/icons/sprite.svg#i-add"/></svg> Weitere Zutat
           </button>
         </fieldset>
-
-        <div id="meal-form-error" class="error-message hidden"></div>
-
+        <div id="meal-form-error" class="error-message hidden" role="alert"></div>
         <div class="modal-actions">
           <button type="submit" class="btn btn-primary">
-            <ion-icon name="save-outline"></ion-icon> Speichern
+            <svg class="icon" aria-hidden="true"><use href="/icons/sprite.svg#i-save"/></svg> Speichern
           </button>
           <button type="button" id="cancel-meal-form-btn" class="btn btn-secondary">
-            <ion-icon name="close-outline"></ion-icon> Abbrechen
+            <svg class="icon" aria-hidden="true"><use href="/icons/sprite.svg#i-close"/></svg> Abbrechen
           </button>
         </div>
       </form>
     </div>
-  </div>
+  </dialog>
 
-  <!-- Modal: Löschen bestätigen -->
-  <div id="delete-confirm-modal" class="modal hidden">
-    <div class="modal-content modal-small">
-      <h2>Gericht löschen</h2>
-      <p>Möchtest du das Gericht <strong id="delete-meal-name"></strong> wirklich löschen?</p>
-      <p class="warning">Diese Aktion kann nicht rückgängig gemacht werden.</p>
-      <div class="modal-actions">
-        <button id="confirm-delete-btn" class="btn btn-danger">
-          <ion-icon name="trash-outline"></ion-icon> Löschen
-        </button>
-        <button id="cancel-delete-btn" class="btn btn-secondary">
-          <ion-icon name="close-outline"></ion-icon> Abbrechen
-        </button>
-      </div>
-    </div>
-  </div>
-
-  <!-- Modal: Vorlage speichern -->
-  <div id="save-template-modal" class="modal hidden">
+  <!-- Einkaufsliste als Vorlage speichern -->
+  <dialog id="save-template-modal" class="modal modal-small" aria-labelledby="save-template-title">
     <div class="modal-content">
-      <h2>Als Vorlage speichern</h2>
+      <h2 id="save-template-title">Als Vorlage speichern</h2>
       <form id="save-template-form">
         <div class="form-group">
           <label for="template-name">Vorlagenname *</label>
-          <input type="text" id="template-name" required maxlength="100" placeholder="z.B. Wöchentliche Basics">
+          <input type="text" id="template-name" required maxlength="100" placeholder="z. B. Wöchentliche Basics">
         </div>
-        <div id="save-template-error" class="error-message hidden"></div>
+        <div id="save-template-error" class="error-message hidden" role="alert"></div>
         <div class="modal-actions">
           <button type="submit" class="btn btn-primary">
-            <ion-icon name="save-outline"></ion-icon> Speichern
+            <svg class="icon" aria-hidden="true"><use href="/icons/sprite.svg#i-save"/></svg> Speichern
           </button>
           <button type="button" id="cancel-save-template-btn" class="btn btn-secondary">
-            <ion-icon name="close-outline"></ion-icon> Abbrechen
+            <svg class="icon" aria-hidden="true"><use href="/icons/sprite.svg#i-close"/></svg> Abbrechen
           </button>
         </div>
       </form>
     </div>
-  </div>
+  </dialog>
 
-  <!-- Modal: Vorlagen verwalten -->
-  <div id="manage-templates-modal" class="modal hidden">
+  <!-- Vorlagen verwalten -->
+  <dialog id="manage-templates-modal" class="modal" aria-labelledby="manage-templates-title">
     <div class="modal-content">
-      <h2>Vorlagen verwalten</h2>
-      <div class="toolbar templates-toolbar">
-        <button id="add-template-btn" class="btn btn-primary">
-          <ion-icon name="add-outline"></ion-icon> Neue Vorlage
+      <h2 id="manage-templates-title">Vorlagen verwalten</h2>
+      <div class="toolbar">
+        <button id="add-template-btn" class="btn btn-primary" type="button">
+          <svg class="icon" aria-hidden="true"><use href="/icons/sprite.svg#i-add"/></svg> Neue Vorlage
         </button>
       </div>
-      <div id="templates-list" class="templates-list">
-      </div>
+      <div id="templates-list" class="templates-list"></div>
       <div class="modal-actions">
-        <button id="close-manage-templates-btn" class="btn btn-secondary">
-          <ion-icon name="close-outline"></ion-icon> Schließen
+        <button id="close-manage-templates-btn" class="btn btn-secondary" type="button">
+          <svg class="icon" aria-hidden="true"><use href="/icons/sprite.svg#i-close"/></svg> Schließen
         </button>
       </div>
     </div>
-  </div>
+  </dialog>
 
-  <!-- Modal: Vorlage bearbeiten / erstellen -->
-  <div id="template-form-modal" class="modal hidden">
+  <!-- Vorlage erstellen / bearbeiten -->
+  <dialog id="template-form-modal" class="modal" aria-labelledby="template-form-title">
     <div class="modal-content">
       <h2 id="template-form-title">Neue Vorlage</h2>
-      <form id="template-form">
-        <input type="hidden" id="template-id" value="">
+      <form id="template-form" novalidate>
         <div class="form-group">
           <label for="template-form-name">Name *</label>
           <input type="text" id="template-form-name" required maxlength="100">
         </div>
-
         <fieldset>
-          <legend>Items</legend>
-          <div id="template-items-list">
-          </div>
+          <legend>Artikel</legend>
+          <div id="template-items-list" class="row-list"></div>
           <button type="button" id="add-template-item-btn" class="btn btn-secondary btn-small">
-            <ion-icon name="add-outline"></ion-icon> Weitere Item
+            <svg class="icon" aria-hidden="true"><use href="/icons/sprite.svg#i-add"/></svg> Weiterer Artikel
           </button>
         </fieldset>
-
-        <div id="template-form-error" class="error-message hidden"></div>
-
+        <div id="template-form-error" class="error-message hidden" role="alert"></div>
         <div class="modal-actions">
           <button type="submit" class="btn btn-primary">
-            <ion-icon name="save-outline"></ion-icon> Speichern
+            <svg class="icon" aria-hidden="true"><use href="/icons/sprite.svg#i-save"/></svg> Speichern
           </button>
           <button type="button" id="cancel-template-form-btn" class="btn btn-secondary">
-            <ion-icon name="close-outline"></ion-icon> Abbrechen
+            <svg class="icon" aria-hidden="true"><use href="/icons/sprite.svg#i-close"/></svg> Abbrechen
           </button>
         </div>
       </form>
     </div>
-  </div>
+  </dialog>
 
-  <!-- Modal: Vorlage löschen bestätigen -->
-  <div id="delete-template-confirm-modal" class="modal hidden">
-    <div class="modal-content modal-small">
-      <h2>Vorlage löschen</h2>
-      <p>Möchtest du die Vorlage <strong id="delete-template-name"></strong> wirklich löschen?</p>
-      <p class="warning">Diese Aktion kann nicht rückgängig gemacht werden.</p>
-      <div class="modal-actions">
-        <button id="confirm-delete-template-btn" class="btn btn-danger">
-          <ion-icon name="trash-outline"></ion-icon> Löschen
-        </button>
-        <button id="cancel-delete-template-btn" class="btn btn-secondary">
-          <ion-icon name="close-outline"></ion-icon> Abbrechen
-        </button>
-      </div>
-    </div>
-  </div>
-
-  <!-- Modal: Kategorie hinzufügen -->
-  <div id="add-category-modal" class="modal hidden">
-    <div class="modal-content modal-small">
-      <h2>Neue Kategorie</h2>
+  <!-- Kategorie hinzufügen -->
+  <dialog id="add-category-modal" class="modal modal-small" aria-labelledby="add-category-title">
+    <div class="modal-content">
+      <h2 id="add-category-title">Neue Kategorie</h2>
       <form id="add-category-form">
         <div class="form-group">
           <label for="new-category-name">Kategoriename *</label>
-          <input type="text" id="new-category-name" required maxlength="100" placeholder="z.B. Obst & Gemüse">
+          <input type="text" id="new-category-name" required maxlength="100" placeholder="z. B. Obst &amp; Gemüse">
         </div>
-        <div id="add-category-error" class="error-message hidden"></div>
+        <div id="add-category-error" class="error-message hidden" role="alert"></div>
         <div class="modal-actions">
           <button type="submit" class="btn btn-primary">
-            <ion-icon name="save-outline"></ion-icon> Hinzufügen
+            <svg class="icon" aria-hidden="true"><use href="/icons/sprite.svg#i-add"/></svg> Hinzufügen
           </button>
           <button type="button" id="cancel-add-category-btn" class="btn btn-secondary">
-            <ion-icon name="close-outline"></ion-icon> Abbrechen
+            <svg class="icon" aria-hidden="true"><use href="/icons/sprite.svg#i-close"/></svg> Abbrechen
           </button>
         </div>
       </form>
     </div>
-  </div>
+  </dialog>
 
-  <!-- Modal: Kategorie löschen bestätigen -->
-  <div id="delete-category-confirm-modal" class="modal hidden">
-    <div class="modal-content modal-small">
-      <h2>Kategorie löschen</h2>
-      <p>Möchtest du die Kategorie <strong id="delete-category-name"></strong> wirklich löschen?</p>
-      <p>Alle enthaltenen Items werden ebenfalls gelöscht.</p>
-      <p class="warning">Diese Aktion kann nicht rückgängig gemacht werden.</p>
-      <div class="modal-actions">
-        <button id="confirm-delete-category-btn" class="btn btn-danger">
-          <ion-icon name="trash-outline"></ion-icon> Löschen
-        </button>
-        <button id="cancel-delete-category-btn" class="btn btn-secondary">
-          <ion-icon name="close-outline"></ion-icon> Abbrechen
-        </button>
-      </div>
-    </div>
-  </div>
-
-  <!-- Toast-Benachrichtigung -->
-  <div id="toast" class="toast hidden"></div>
-
-  <script src="main.js"></script>
+  <div id="toast" class="toast hidden" role="status" aria-live="polite"></div>
 </body>
 </html>

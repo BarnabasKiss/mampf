@@ -1,7 +1,5 @@
+import { createHash, timingSafeEqual } from 'crypto';
 import { Request, Response, NextFunction } from 'express';
-
-const VALID_USERNAME = process.env.APP_USERNAME || 'admin';
-const VALID_PASSWORD = process.env.APP_PASSWORD || 'admin';
 
 declare module 'express-session' {
   interface SessionData {
@@ -10,12 +8,24 @@ declare module 'express-session' {
   }
 }
 
-export function verifyPassword(password: string): boolean {
-  if (!VALID_PASSWORD) {
-    console.warn('APP_PASSWORD ist nicht gesetzt! Authentifizierung nicht möglich.');
-    return false;
-  }
-  return password === VALID_PASSWORD;
+function digest(value: string): Buffer {
+  return createHash('sha256').update(value).digest();
+}
+
+/** Zeitkonstanter Stringvergleich (über SHA-256-Hashes gleicher Länge). */
+export function safeEqual(a: string, b: string): boolean {
+  return timingSafeEqual(digest(a), digest(b));
+}
+
+/** Prüft beide Werte immer vollständig, damit die Laufzeit nichts über den Benutzernamen verrät. */
+export function verifyCredentials(
+  expected: { username: string; password: string },
+  username: string,
+  password: string
+): boolean {
+  const userOk = safeEqual(username, expected.username);
+  const passOk = safeEqual(password, expected.password);
+  return userOk && passOk;
 }
 
 export function requireAuth(req: Request, res: Response, next: NextFunction): void {
@@ -24,12 +34,4 @@ export function requireAuth(req: Request, res: Response, next: NextFunction): vo
   } else {
     res.status(401).json({ error: 'Nicht authentifiziert.' });
   }
-}
-
-export function isAuthenticated(req: Request): boolean {
-  return req.session?.authenticated === true;
-}
-
-export function getConfiguredUsername(): string {
-  return VALID_USERNAME;
 }

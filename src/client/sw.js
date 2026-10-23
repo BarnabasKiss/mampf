@@ -1,16 +1,35 @@
-/* Mampf – Service Worker (PWA / Offline) */
-const CACHE_NAME = 'mampf-v1';
+/* Mampf – Service Worker (PWA / Offline)
+ *
+ * - App-Shell wird vorab gecacht, damit die App offline startet.
+ * - Navigation: Netzwerk zuerst, Fallback auf den gecachten Shell.
+ * - Statische Dateien: Cache zuerst, im Hintergrund aktualisiert.
+ * - API-Aufrufe gehen immer direkt ins Netz (nie cachen).
+ *
+ * Bei Änderungen an der Dateiliste unten CACHE_NAME hochzählen.
+ */
+const CACHE_NAME = 'mampf-v3';
 const APP_SHELL = [
   '/',
-  '/index.html',
   '/styles.css',
-  '/main.js',
   '/manifest.json',
+  '/js/main.js',
+  '/js/api.js',
+  '/js/auth.js',
+  '/js/dom.js',
+  '/js/domain.js',
+  '/js/meals.js',
+  '/js/plan.js',
+  '/js/shopping.js',
+  '/js/storage.js',
+  '/js/tabs.js',
+  '/js/templates.js',
+  '/icons/sprite.svg',
+  '/icons/icon.svg',
   '/icons/icon-32.png',
   '/icons/icon-192.png',
   '/icons/icon-512.png',
   '/icons/icon-maskable-512.png',
-  '/icons/apple-touch-icon.png'
+  '/icons/apple-touch-icon.png',
 ];
 
 self.addEventListener('install', (event) => {
@@ -22,44 +41,38 @@ self.addEventListener('install', (event) => {
 self.addEventListener('activate', (event) => {
   event.waitUntil(
     caches.keys()
-      .then((keys) => Promise.all(keys.filter((k) => k !== CACHE_NAME).map((k) => caches.delete(k))))
+      .then((keys) => Promise.all(keys.filter((key) => key !== CACHE_NAME).map((key) => caches.delete(key))))
       .then(() => self.clients.claim())
   );
 });
 
 self.addEventListener('fetch', (event) => {
-  const request = event.request;
+  const { request } = event;
   if (request.method !== 'GET') return;
 
   const url = new URL(request.url);
+  if (url.origin !== self.location.origin || url.pathname.startsWith('/api/')) return;
 
-  // API immer übers Netzwerk (Session- und Echtzeit-Daten nicht cachen)
-  if (url.pathname.startsWith('/api/')) {
-    return;
-  }
-
-  // HTML-Navigation: Netzwerk-first mit Offline-Fallback auf den App-Shell
   if (request.mode === 'navigate') {
     event.respondWith(
       fetch(request)
         .then((response) => {
-          const clone = response.clone();
-          caches.open(CACHE_NAME).then((cache) => cache.put('/', clone));
+          const copy = response.clone();
+          caches.open(CACHE_NAME).then((cache) => cache.put('/', copy));
           return response;
         })
-        .catch(() => caches.match('/').then((c) => c || caches.match('/index.html')))
+        .catch(() => caches.match('/'))
     );
     return;
   }
 
-  // Statische Assets: Cache-first, dann Netzwerk mit Cache-Update
   event.respondWith(
     caches.match(request).then((cached) => {
       const network = fetch(request)
         .then((response) => {
-          if (response && (response.status === 200 || response.type === 'opaque')) {
-            const clone = response.clone();
-            caches.open(CACHE_NAME).then((cache) => cache.put(request, clone));
+          if (response.ok) {
+            const copy = response.clone();
+            caches.open(CACHE_NAME).then((cache) => cache.put(request, copy));
           }
           return response;
         })

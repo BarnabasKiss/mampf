@@ -18,7 +18,11 @@ export interface Meal {
   ingredients: Ingredient[];
 }
 
-export interface MealRow {
+export type MealInput = Pick<Meal, 'name' | 'difficulty' | 'standard_portions'> & {
+  ingredients: Ingredient[];
+};
+
+interface MealRow {
   id: number;
   name: string;
   difficulty: number;
@@ -27,7 +31,7 @@ export interface MealRow {
   updated_at: string;
 }
 
-export interface IngredientRow {
+interface IngredientRow {
   id: number;
   meal_id: number;
   name: string;
@@ -35,111 +39,96 @@ export interface IngredientRow {
   sort_order: number;
 }
 
-export function getAllMeals(): Meal[] {
-  const db = getDatabase();
-  const meals = db.prepare('SELECT * FROM meals ORDER BY name ASC').all() as MealRow[];
-  const ingredients = db.prepare('SELECT * FROM ingredients ORDER BY sort_order ASC').all() as IngredientRow[];
+/** Hängt die Zutaten an die Gerichte (eine Abfrage, Gruppierung per Map). */
+function hydrate(meals: MealRow[]): Meal[] {
+  if (meals.length === 0) return [];
 
-  return meals.map(meal => ({
-    ...meal,
-    ingredients: ingredients
-      .filter(ing => ing.meal_id === meal.id)
-      .map(ing => ({
-        id: ing.id,
-        meal_id: ing.meal_id,
-        name: ing.name,
-        package_count: ing.package_count,
-        sort_order: ing.sort_order,
-      })),
-  }));
+  const rows = getDatabase()
+    .prepare('SELECT * FROM ingredients ORDER BY sort_order ASC, id ASC')
+    .all() as IngredientRow[];
+
+  const byMeal = new Map<number, Ingredient[]>();
+  for (const row of rows) {
+    const list = byMeal.get(row.meal_id) ?? [];
+    list.push({
+      id: row.id,
+      meal_id: row.meal_id,
+      name: row.name,
+      package_count: row.package_count,
+      sort_order: row.sort_order,
+    });
+    byMeal.set(row.meal_id, list);
+  }
+
+  return meals.map(meal => ({ ...meal, ingredients: byMeal.get(meal.id) ?? [] }));
+}
+
+function replaceIngredients(mealId: number, ingredients: Ingredient[]): void {
+  const db = getDatabase();
+  db.prepare('DELETE FROM ingredients WHERE meal_id = ?').run(mealId);
+  const insert = db.prepare(
+    'INSERT INTO ingredients (meal_id, name, package_count, sort_order) VALUES (?, ?, ?, ?)'
+  );
+  for (const ing of ingredients) {
+    insert.run(mealId, ing.name, ing.package_count, ing.sort_order);
+  }
+}
+
+export function getAllMeals(): Meal[] {
+  const meals = getDatabase().prepare('SELECT * FROM meals ORDER BY name ASC').all() as MealRow[];
+  return hydrate(meals);
+}
+
+export function searchMeals(query: string): Meal[] {
+  const meals = getDatabase()
+    .prepare('SELECT * FROM meals WHERE name LIKE ? ORDER BY name ASC')
+    .all(`%${query}%`) as MealRow[];
+  return hydrate(meals);
 }
 
 export function getMealById(id: number): Meal | undefined {
-  const db = getDatabase();
-  const meal = db.prepare('SELECT * FROM meals WHERE id = ?').get(id) as MealRow | undefined;
-  if (!meal) return undefined;
-
-  const ingredients = db.prepare('SELECT * FROM ingredients WHERE meal_id = ? ORDER BY sort_order ASC').all(id) as IngredientRow[];
-
-  return {
-    ...meal,
-    ingredients: ingredients.map(ing => ({
-      id: ing.id,
-      meal_id: ing.meal_id,
-      name: ing.name,
-      package_count: ing.package_count,
-      sort_order: ing.sort_order,
-    })),
-  };
+  const meal = getDatabase().prepare('SELECT * FROM meals WHERE id = ?').get(id) as MealRow | undefined;
+  return meal ? hydrate([meal])[0] : undefined;
 }
 
-export function createMeal(meal: Meal): Meal {
+export function createMeal(meal: MealInput): Meal {
   const db = getDatabase();
-
-  const insertMeal = db.prepare(
-    'INSERT INTO meals (name, difficulty, standard_portions) VALUES (?, ?, ?)'
-  );
-  const result = insertMeal.run(meal.name, meal.difficulty, meal.standard_portions);
-  const mealId = result.lastInsertRowid as number;
-
-  const insertIngredient = db.prepare(
-    'INSERT INTO ingredients (meal_id, name, package_count, sort_order) VALUES (?, ?, ?, ?)'
-  );
-
-  const insertMany = db.transaction((ingredients: Ingredient[]) => {
-    for (const ing of ingredients) {
-      insertIngredient.run(mealId, ing.name, ing.package_count, ing.sort_order);
-    }
+  const create = db.transaction((input: MealInput): number => {
+    const result = db
+      .prepare('INSERT INTO meals (name, difficulty, standard_portions) VALUES (?, ?, ?)')
+      .run(input.name, input.difficulty, input.standard_portions);
+    const id = Number(result.lastInsertRowid);
+    replaceIngredients(id, input.ingredients);
+    return id;
   });
-
-  insertMany(meal.ingredients);
-
-  return getMealById(mealId)!;
+  return getMealById(create(meal))!;
 }
 
-export function updateMeal(id: number, meal: Meal): Meal | undefined {
+export function updateMeal(id: number, meal: MealInput): Meal | undefined {
   const db = getDatabase();
-  const existing = getMealById(id);
-  if (!existing) return undefined;
-
-  const updateMealStmt = db.prepare(
-    'UPDATE meals SET name = ?, difficulty = ?, standard_portions = ?, updated_at = datetime(\'now\') WHERE id = ?'
-  );
-  updateMealStmt.run(meal.name, meal.difficulty, meal.standard_portions, id);
-
-  // Zutaten löschen und neu einfügen
-  db.prepare('DELETE FROM ingredients WHERE meal_id = ?').run(id);
-
-  const insertIngredient = db.prepare(
-    'INSERT INTO ingredients (meal_id, name, package_count, sort_order) VALUES (?, ?, ?, ?)'
-  );
-
-  const insertMany = db.transaction((ingredients: Ingredient[]) => {
-    for (const ing of ingredients) {
-      insertIngredient.run(id, ing.name, ing.package_count, ing.sort_order);
-    }
+  const update = db.transaction((input: MealInput): boolean => {
+    const result = db
+      .prepare(
+        "UPDATE meals SET name = ?, difficulty = ?, standard_portions = ?, updated_at = datetime('now') WHERE id = ?"
+      )
+      .run(input.name, input.difficulty, input.standard_portions, id);
+    if (result.changes === 0) return false;
+    replaceIngredients(id, input.ingredients);
+    return true;
   });
-
-  insertMany(meal.ingredients);
-
-  return getMealById(id);
+  return update(meal) ? getMealById(id) : undefined;
 }
 
 export function deleteMeal(id: number): boolean {
-  const db = getDatabase();
-  const result = db.prepare('DELETE FROM meals WHERE id = ?').run(id);
-  return result.changes > 0;
+  return getDatabase().prepare('DELETE FROM meals WHERE id = ?').run(id).changes > 0;
 }
 
 export function getRandomMeals(count: number, excludeIds: number[] = []): Meal[] {
-  const db = getDatabase();
-
-  let query = 'SELECT * FROM meals';
   const params: number[] = [];
+  let query = 'SELECT * FROM meals';
 
   if (excludeIds.length > 0) {
-    const placeholders = excludeIds.map(() => '?').join(', ');
-    query += ` WHERE id NOT IN (${placeholders})`;
+    query += ` WHERE id NOT IN (${excludeIds.map(() => '?').join(', ')})`;
     params.push(...excludeIds);
   }
 
@@ -150,38 +139,5 @@ export function getRandomMeals(count: number, excludeIds: number[] = []): Meal[]
     params.push(count);
   }
 
-  const meals = db.prepare(query).all(...params) as MealRow[];
-  const allIngredients = db.prepare('SELECT * FROM ingredients ORDER BY sort_order ASC').all() as IngredientRow[];
-
-  return meals.map(meal => ({
-    ...meal,
-    ingredients: allIngredients
-      .filter(ing => ing.meal_id === meal.id)
-      .map(ing => ({
-        id: ing.id,
-        meal_id: ing.meal_id,
-        name: ing.name,
-        package_count: ing.package_count,
-        sort_order: ing.sort_order,
-      })),
-  }));
-}
-
-export function searchMeals(query: string): Meal[] {
-  const db = getDatabase();
-  const meals = db.prepare('SELECT * FROM meals WHERE name LIKE ? ORDER BY name ASC').all(`%${query}%`) as MealRow[];
-  const allIngredients = db.prepare('SELECT * FROM ingredients ORDER BY sort_order ASC').all() as IngredientRow[];
-
-  return meals.map(meal => ({
-    ...meal,
-    ingredients: allIngredients
-      .filter(ing => ing.meal_id === meal.id)
-      .map(ing => ({
-        id: ing.id,
-        meal_id: ing.meal_id,
-        name: ing.name,
-        package_count: ing.package_count,
-        sort_order: ing.sort_order,
-      })),
-  }));
+  return hydrate(getDatabase().prepare(query).all(...params) as MealRow[]);
 }

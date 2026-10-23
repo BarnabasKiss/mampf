@@ -6,3 +6,9 @@ docker-compose.override.yml
 *.sqlite
 *.sqlite-wal
 *.sqlite-shm
+# Build-Ausgaben, lokale Konfiguration
+dist-test/
+coverage/
+.claude/settings.local.json
+*.log
+.DS_Store

@@ -1,7 +1,7 @@
 services:
   meal-planner:
-    # Verwende "image:" für das vorgebaute GHCR-Image (CasaOS/Produktion).
-    # Kommentiere "image:" aus und nutze "build: ." für lokales Bauen:
+    # Vorgebautes GHCR-Image (CasaOS/Produktion). Für lokales Bauen "image:" auskommentieren
+    # und stattdessen "build: ." verwenden.
     image: ghcr.io/barnabaskiss/mampf:latest
     # build: .
     container_name: meal-planner
@@ -9,9 +9,20 @@ services:
     ports:
       - "3000:3000"
     environment:
-      APP_USERNAME: ${APP_USERNAME}
-      APP_PASSWORD: ${APP_PASSWORD}
-      SESSION_SECRET: ${SESSION_SECRET}
+      APP_USERNAME: ${APP_USERNAME:?APP_USERNAME muss gesetzt sein}
+      APP_PASSWORD: ${APP_PASSWORD:?APP_PASSWORD muss gesetzt sein}
+      SESSION_SECRET: ${SESSION_SECRET:?SESSION_SECRET muss gesetzt sein}
+      # Nur hinter HTTPS auf "true" setzen (sonst wird das Session-Cookie nicht gesendet).
+      COOKIE_SECURE: ${COOKIE_SECURE:-false}
+      # Hinter einem Reverse Proxy z.B. "1" (korrekte Client-IP fürs Login-Limit).
+      TRUST_PROXY: ${TRUST_PROXY:-}
       DATABASE_PATH: /app/data/meals.sqlite
     volumes:
+      # Muss für UID 1000 (Benutzer "node" im Container) schreibbar sein: chown 1000:1000 ./data
       - ./data:/app/data
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://127.0.0.1:3000/healthz"]
+      interval: 30s
+      timeout: 5s
+      start_period: 10s
+      retries: 3

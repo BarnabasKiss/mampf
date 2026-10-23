@@ -1,54 +1,63 @@
-import { Router, Request, Response } from 'express';
-import { verifyPassword, getConfiguredUsername } from '../auth';
+import { Router } from 'express';
+import { AppConfig } from '../config';
+import { verifyCredentials } from '../auth';
+import { route } from '../http/helpers';
+import { FailureRateLimiter } from '../rate-limit';
+import { asBody } from '../validation/common';
 
-const router = Router();
+export const SESSION_COOKIE_NAME = 'connect.sid';
 
-// POST /api/login
-router.post('/login', (req: Request, res: Response) => {
-  const { username, password } = req.body;
+export function createAuthRouter(config: AppConfig, limiter: FailureRateLimiter): Router {
+  const router = Router();
 
-  if (!username || !password) {
-    res.status(400).json({ error: 'Benutzername und Passwort sind erforderlich.' });
-    return;
-  }
+  // POST /api/login
+  router.post('/login', route('Fehler bei der Anmeldung.', (req, res) => {
+    const key = req.ip ?? 'unknown';
 
-  const configuredUsername = getConfiguredUsername();
-
-  if (username !== configuredUsername) {
-    res.status(401).json({ error: 'Ungültiger Benutzername oder Passwort.' });
-    return;
-  }
-
-  if (!verifyPassword(password)) {
-    res.status(401).json({ error: 'Ungültiger Benutzername oder Passwort.' });
-    return;
-  }
-
-  req.session.authenticated = true;
-  req.session.username = username;
-
-  res.json({ success: true, username });
-});
-
-// POST /api/logout
-router.post('/logout', (req: Request, res: Response) => {
-  req.session.destroy((err) => {
-    if (err) {
-      res.status(500).json({ error: 'Fehler beim Abmelden.' });
+    if (limiter.isBlocked(key)) {
+      res.setHeader('Retry-After', String(limiter.retryAfterSeconds(key)));
+      res.status(429).json({ error: 'Zu viele fehlgeschlagene Versuche. Bitte später erneut versuchen.' });
       return;
     }
-    res.clearCookie('connect.sid');
-    res.json({ success: true });
+
+    const { username, password } = asBody(req.body);
+    if (!username || !password || typeof username !== 'string' || typeof password !== 'string') {
+      res.status(400).json({ error: 'Benutzername und Passwort sind erforderlich.' });
+      return;
+    }
+
+    if (!verifyCredentials(config, username, password)) {
+      limiter.recordFailure(key);
+      res.status(401).json({ error: 'Ungültiger Benutzername oder Passwort.' });
+      return;
+    }
+
+    limiter.reset(key);
+    req.session.authenticated = true;
+    req.session.username = username;
+    res.json({ success: true, username });
+  }));
+
+  // POST /api/logout
+  router.post('/logout', (req, res) => {
+    req.session.destroy(err => {
+      if (err) {
+        res.status(500).json({ error: 'Fehler beim Abmelden.' });
+        return;
+      }
+      res.clearCookie(SESSION_COOKIE_NAME);
+      res.json({ success: true });
+    });
   });
-});
 
-// GET /api/session
-router.get('/session', (req: Request, res: Response) => {
-  if (req.session?.authenticated) {
-    res.json({ authenticated: true, username: req.session.username });
-  } else {
-    res.json({ authenticated: false });
-  }
-});
+  // GET /api/session
+  router.get('/session', (req, res) => {
+    if (req.session?.authenticated) {
+      res.json({ authenticated: true, username: req.session.username });
+    } else {
+      res.json({ authenticated: false });
+    }
+  });
 
-export default router;
+  return router;
+}

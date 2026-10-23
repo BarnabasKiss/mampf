@@ -64,21 +64,6 @@ export interface ShoppingTemplateItemRow {
 
 // ==================== Einkaufsliste ====================
 
-// Stellt sicher, dass mindestens eine Kategorie existiert.
-export function ensureDefaultCategory(): ShoppingCategory {
-  const db = getDatabase();
-  const category = db.prepare('SELECT * FROM shopping_categories ORDER BY sort_order ASC, id ASC LIMIT 1').get() as ShoppingCategory | undefined;
-  if (!category) {
-    const result = db.prepare('INSERT INTO shopping_categories (name, sort_order) VALUES (?, 0)').run('Allgemein');
-    return getCategoryById(result.lastInsertRowid as number)!;
-  }
-  return category;
-}
-
-export function getDefaultCategoryId(): number {
-  return ensureDefaultCategory().id as number;
-}
-
 export function getAllItems(): ShoppingItem[] {
   const db = getDatabase();
   return db.prepare(`
@@ -90,23 +75,27 @@ export function getAllItems(): ShoppingItem[] {
 }
 
 export function addItem(name: string, amount: string, categoryId?: number | null): ShoppingItem {
-  const db = getDatabase();
-  const catId = categoryId !== undefined ? categoryId : null;
-  const result = db.prepare('INSERT INTO shopping_list_items (name, amount, category_id) VALUES (?, ?, ?)').run(name, amount, catId);
-  const id = result.lastInsertRowid as number;
-  return getItemById(id)!;
+  const result = getDatabase()
+    .prepare('INSERT INTO shopping_list_items (name, amount, category_id) VALUES (?, ?, ?)')
+    .run(name, amount, categoryId ?? null);
+  return getItemById(Number(result.lastInsertRowid))!;
 }
 
-export function addItems(items: { name: string; amount: string; category_id?: number | null }[]): ShoppingItem[] {
+export interface NewShoppingItem {
+  name: string;
+  amount: string;
+  category_id?: number | null;
+}
+
+/** Fügt mehrere Items atomar hinzu und liefert die komplette Liste zurück. */
+export function addItems(items: NewShoppingItem[]): ShoppingItem[] {
   const db = getDatabase();
   const insert = db.prepare('INSERT INTO shopping_list_items (name, amount, category_id) VALUES (?, ?, ?)');
-  const insertMany = db.transaction((itemsToInsert: { name: string; amount: string; category_id?: number | null }[]) => {
-    for (const item of itemsToInsert) {
-      const catId = item.category_id !== undefined ? item.category_id : null;
-      insert.run(item.name, item.amount, catId);
+  db.transaction((toInsert: NewShoppingItem[]) => {
+    for (const item of toInsert) {
+      insert.run(item.name, item.amount, item.category_id ?? null);
     }
-  });
-  insertMany(items);
+  })(items);
   return getAllItems();
 }
 
@@ -122,8 +111,7 @@ export function getItemById(id: number): ShoppingItem | undefined {
 
 export function updateItem(id: number, name: string, amount: string, checked: number, categoryId?: number | null): ShoppingItem | undefined {
   const db = getDatabase();
-  const existing = getItemById(id);
-  if (!existing) return undefined;
+  if (!getItemById(id)) return undefined;
 
   if (categoryId !== undefined && categoryId !== null) {
     db.prepare(
@@ -187,7 +175,7 @@ export function addCategory(name: string): ShoppingCategory {
   const db = getDatabase();
   const maxSort = (db.prepare('SELECT COALESCE(MAX(sort_order), -1) AS mx FROM shopping_categories').get() as { mx: number }).mx;
   const result = db.prepare('INSERT INTO shopping_categories (name, sort_order) VALUES (?, ?)').run(name, maxSort + 1);
-  return getCategoryById(result.lastInsertRowid as number)!;
+  return getCategoryById(Number(result.lastInsertRowid))!;
 }
 
 export function renameCategory(id: number, name: string): ShoppingCategory | undefined {
@@ -206,111 +194,95 @@ export function deleteCategory(id: number): { deleted: boolean; itemsDeleted: nu
     return { deleted: false, itemsDeleted: 0 };
   }
 
-  const itemsDeleted = (db.prepare('DELETE FROM shopping_list_items WHERE category_id = ?').run(id)).changes;
-  const result = db.prepare('DELETE FROM shopping_categories WHERE id = ?').run(id);
-  return { deleted: result.changes > 0, itemsDeleted };
+  return db.transaction(() => {
+    const itemsDeleted = db.prepare('DELETE FROM shopping_list_items WHERE category_id = ?').run(id).changes;
+    const result = db.prepare('DELETE FROM shopping_categories WHERE id = ?').run(id);
+    return { deleted: result.changes > 0, itemsDeleted };
+  })();
 }
 
 // ==================== Vorlagen ====================
 
-export function getAllTemplates(): ShoppingTemplate[] {
-  const db = getDatabase();
-  const templates = db.prepare('SELECT * FROM shopping_templates ORDER BY name ASC').all() as ShoppingTemplateRow[];
-  const items = db.prepare('SELECT * FROM shopping_template_items ORDER BY sort_order ASC').all() as ShoppingTemplateItemRow[];
+function hydrateTemplates(templates: ShoppingTemplateRow[]): ShoppingTemplate[] {
+  if (templates.length === 0) return [];
 
-  return templates.map(template => ({
-    ...template,
-    items: items
-      .filter(item => item.template_id === template.id)
-      .map(item => ({
-        id: item.id,
-        template_id: item.template_id,
-        name: item.name,
-        amount: item.amount,
-        sort_order: item.sort_order,
-      })),
-  }));
+  const rows = getDatabase()
+    .prepare('SELECT * FROM shopping_template_items ORDER BY sort_order ASC, id ASC')
+    .all() as ShoppingTemplateItemRow[];
+
+  const byTemplate = new Map<number, ShoppingTemplateItem[]>();
+  for (const row of rows) {
+    const list = byTemplate.get(row.template_id) ?? [];
+    list.push({
+      id: row.id,
+      template_id: row.template_id,
+      name: row.name,
+      amount: row.amount,
+      sort_order: row.sort_order,
+    });
+    byTemplate.set(row.template_id, list);
+  }
+
+  return templates.map(template => ({ ...template, items: byTemplate.get(template.id) ?? [] }));
+}
+
+function replaceTemplateItems(templateId: number, items: ShoppingTemplateItem[]): void {
+  const db = getDatabase();
+  db.prepare('DELETE FROM shopping_template_items WHERE template_id = ?').run(templateId);
+  const insert = db.prepare(
+    'INSERT INTO shopping_template_items (template_id, name, amount, sort_order) VALUES (?, ?, ?, ?)'
+  );
+  for (const item of items) {
+    insert.run(templateId, item.name, item.amount, item.sort_order);
+  }
+}
+
+export function getAllTemplates(): ShoppingTemplate[] {
+  const templates = getDatabase()
+    .prepare('SELECT * FROM shopping_templates ORDER BY name ASC')
+    .all() as ShoppingTemplateRow[];
+  return hydrateTemplates(templates);
 }
 
 export function getTemplateById(id: number): ShoppingTemplate | undefined {
-  const db = getDatabase();
-  const template = db.prepare('SELECT * FROM shopping_templates WHERE id = ?').get(id) as ShoppingTemplateRow | undefined;
-  if (!template) return undefined;
-
-  const items = db.prepare('SELECT * FROM shopping_template_items WHERE template_id = ? ORDER BY sort_order ASC').all(id) as ShoppingTemplateItemRow[];
-
-  return {
-    ...template,
-    items: items.map(item => ({
-      id: item.id,
-      template_id: item.template_id,
-      name: item.name,
-      amount: item.amount,
-      sort_order: item.sort_order,
-    })),
-  };
+  const template = getDatabase()
+    .prepare('SELECT * FROM shopping_templates WHERE id = ?')
+    .get(id) as ShoppingTemplateRow | undefined;
+  return template ? hydrateTemplates([template])[0] : undefined;
 }
 
 export function createTemplate(name: string, items: ShoppingTemplateItem[]): ShoppingTemplate {
   const db = getDatabase();
-
-  const result = db.prepare('INSERT INTO shopping_templates (name) VALUES (?)').run(name);
-  const templateId = result.lastInsertRowid as number;
-
-  const insertItem = db.prepare(
-    'INSERT INTO shopping_template_items (template_id, name, amount, sort_order) VALUES (?, ?, ?, ?)'
-  );
-
-  const insertMany = db.transaction((itemsToInsert: ShoppingTemplateItem[]) => {
-    for (const item of itemsToInsert) {
-      insertItem.run(templateId, item.name, item.amount, item.sort_order);
-    }
+  const create = db.transaction((): number => {
+    const result = db.prepare('INSERT INTO shopping_templates (name) VALUES (?)').run(name);
+    const id = Number(result.lastInsertRowid);
+    replaceTemplateItems(id, items);
+    return id;
   });
-
-  insertMany(items);
-
-  return getTemplateById(templateId)!;
+  return getTemplateById(create())!;
 }
 
 export function updateTemplate(id: number, name: string, items: ShoppingTemplateItem[]): ShoppingTemplate | undefined {
   const db = getDatabase();
-  const existing = getTemplateById(id);
-  if (!existing) return undefined;
-
-  db.prepare('UPDATE shopping_templates SET name = ?, updated_at = datetime(\'now\') WHERE id = ?').run(name, id);
-
-  // Items löschen und neu einfügen
-  db.prepare('DELETE FROM shopping_template_items WHERE template_id = ?').run(id);
-
-  const insertItem = db.prepare(
-    'INSERT INTO shopping_template_items (template_id, name, amount, sort_order) VALUES (?, ?, ?, ?)'
-  );
-
-  const insertMany = db.transaction((itemsToInsert: ShoppingTemplateItem[]) => {
-    for (const item of itemsToInsert) {
-      insertItem.run(id, item.name, item.amount, item.sort_order);
-    }
+  const update = db.transaction((): boolean => {
+    const result = db
+      .prepare("UPDATE shopping_templates SET name = ?, updated_at = datetime('now') WHERE id = ?")
+      .run(name, id);
+    if (result.changes === 0) return false;
+    replaceTemplateItems(id, items);
+    return true;
   });
-
-  insertMany(items);
-
-  return getTemplateById(id);
+  return update() ? getTemplateById(id) : undefined;
 }
 
 export function deleteTemplate(id: number): boolean {
-  const db = getDatabase();
-  const result = db.prepare('DELETE FROM shopping_templates WHERE id = ?').run(id);
-  return result.changes > 0;
+  return getDatabase().prepare('DELETE FROM shopping_templates WHERE id = ?').run(id).changes > 0;
 }
 
+/** Fügt die Items einer Vorlage der Einkaufsliste hinzu; leeres Array, wenn die Vorlage fehlt. */
 export function applyTemplate(templateId: number): ShoppingItem[] {
   const template = getTemplateById(templateId);
   if (!template) return [];
 
-  const items = template.items.map(item => ({
-    name: item.name,
-    amount: item.amount,
-  }));
-
-  return addItems(items);
+  return addItems(template.items.map(item => ({ name: item.name, amount: item.amount })));
 }

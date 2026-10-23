@@ -4,11 +4,9 @@ import { getDatabase } from './database';
 /**
  * SQLite-Session-Store auf Basis von better-sqlite3.
  *
- * Sessions werden in der bestehenden `sessions`-Tabelle (migrations/001-initial.sql)
- * persistiert und überleben damit Server-Neustarts – die Nutzer bleiben eingeloggt,
- * auch wenn der Container neu gestartet wird.
- *
- * Tabellenschema: sessions ( sid TEXT PRIMARY KEY, expires TEXT, sess TEXT )
+ * Sessions liegen in der Tabelle `sessions` (migrations/001-initial.sql) und überleben
+ * damit Server-Neustarts. Schema: sessions ( sid TEXT PRIMARY KEY, expires TEXT, sess TEXT ),
+ * `expires` enthält Millisekunden seit Epoche als Text.
  */
 
 interface SessionRow {
@@ -16,45 +14,46 @@ interface SessionRow {
   sess: string;
 }
 
-const DEFAULT_MAX_AGE = 24 * 60 * 60 * 1000; // 1 Tag (Fallback, falls kein maxAge)
+type Callback = (err?: unknown) => void;
 
-// Sicherstellen, dass die Session-Tabelle existiert.
-// In der normalen Server-Reihenfolge wird sie durch die Migrationen angelegt
-// (migrations/001-initial.sql), aber der Store ist damit auch unabhängig davon nutzbar.
-let tableEnsured = false;
-
-function ensureTable(): void {
-  if (tableEnsured) return;
-  getDatabase().exec(
-    'CREATE TABLE IF NOT EXISTS sessions (' +
-      'sid TEXT PRIMARY KEY, ' +
-      'expires TEXT, ' +
-      'sess TEXT' +
-      ')'
-  );
-  tableEnsured = true;
-}
+const DEFAULT_MAX_AGE = 24 * 60 * 60 * 1000;
+const CLEANUP_INTERVAL = 60 * 60 * 1000;
 
 function expiryMillis(sess: session.SessionData): number {
-  const maxAge = sess?.cookie?.maxAge;
-  const ttl = maxAge ? maxAge : DEFAULT_MAX_AGE;
-  return Date.now() + ttl;
+  return Date.now() + (sess?.cookie?.maxAge || DEFAULT_MAX_AGE);
 }
 
 export class SqliteSessionStore extends session.Store {
-  get(sid: string, callback: (err: any, session?: session.SessionData | null) => void): void {
+  private cleanupTimer: NodeJS.Timeout | undefined;
+
+  /** Löscht abgelaufene Sessions regelmäßig; der Timer hält den Prozess nicht am Leben. */
+  startCleanup(intervalMs: number = CLEANUP_INTERVAL): void {
+    this.stopCleanup();
+    this.deleteExpired();
+    this.cleanupTimer = setInterval(() => this.deleteExpired(), intervalMs);
+    this.cleanupTimer.unref();
+  }
+
+  stopCleanup(): void {
+    if (this.cleanupTimer) {
+      clearInterval(this.cleanupTimer);
+      this.cleanupTimer = undefined;
+    }
+  }
+
+  deleteExpired(): number {
+    return getDatabase()
+      .prepare('DELETE FROM sessions WHERE CAST(expires AS INTEGER) < ?')
+      .run(Date.now()).changes;
+  }
+
+  get(sid: string, callback: (err: unknown, session?: session.SessionData | null) => void): void {
     try {
-      ensureTable();
       const row = getDatabase()
         .prepare('SELECT expires, sess FROM sessions WHERE sid = ?')
         .get(sid) as SessionRow | undefined;
 
-      if (!row) {
-        callback(null, null);
-        return;
-      }
-      // Abgelaufene Sessions wie "nicht vorhanden" behandeln.
-      if (parseInt(row.expires, 10) < Date.now()) {
+      if (!row || parseInt(row.expires, 10) < Date.now()) {
         callback(null, null);
         return;
       }
@@ -64,37 +63,34 @@ export class SqliteSessionStore extends session.Store {
     }
   }
 
-  set(sid: string, sess: session.SessionData, callback?: (err?: any) => void): void {
+  set(sid: string, sess: session.SessionData, callback?: Callback): void {
     try {
-      ensureTable();
       getDatabase()
         .prepare('INSERT OR REPLACE INTO sessions (sid, expires, sess) VALUES (?, ?, ?)')
         .run(sid, String(expiryMillis(sess)), JSON.stringify(sess));
-      if (callback) callback();
+      callback?.();
     } catch (err) {
-      if (callback) callback(err);
+      callback?.(err);
     }
   }
 
-  destroy(sid: string, callback?: (err?: any) => void): void {
+  destroy(sid: string, callback?: Callback): void {
     try {
-      ensureTable();
       getDatabase().prepare('DELETE FROM sessions WHERE sid = ?').run(sid);
-      if (callback) callback();
+      callback?.();
     } catch (err) {
-      if (callback) callback(err);
+      callback?.(err);
     }
   }
 
-  touch(sid: string, sess: session.SessionData, callback?: (err?: any) => void): void {
+  touch(sid: string, sess: session.SessionData, callback?: Callback): void {
     try {
-      ensureTable();
       getDatabase()
-        .prepare('UPDATE sessions SET expires = ? WHERE sid = ? AND expires >= ?')
-        .run(String(expiryMillis(sess)), sid, String(Date.now()));
-      if (callback) callback();
+        .prepare('UPDATE sessions SET expires = ? WHERE sid = ? AND CAST(expires AS INTEGER) >= ?')
+        .run(String(expiryMillis(sess)), sid, Date.now());
+      callback?.();
     } catch (err) {
-      if (callback) callback(err);
+      callback?.(err);
     }
   }
 }
